@@ -12,8 +12,10 @@ kc() {
 }
 
 alias k='kc'
+# GET
 alias kg='kc get'
 alias kgpo='kc get pod'
+alias kgpow='kc get pod -w'
 alias kgsvc='kc get service'
 alias kgdep='kc get deployment'
 alias kgrs='kc get replicaset'
@@ -28,6 +30,87 @@ function kglpo() {
   POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kgpo $POD $@
 }
+
+function kglpow() {
+  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kgpow $POD $@
+}
+
+function kglrs() {
+  RS=$(kc get reolicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kgrs $RS $@
+}
+
+# DESCRIBE
+alias kd='kc describe'
+alias kdpo='kc describe pod'
+alias kdpow='kc describe pod -w'
+alias kdsvc='kc describe service'
+alias kddep='kc describe deployment'
+alias kdrs='kc describe replicaset'
+alias kding='kc describe ingress'
+alias kdcm='kc describe configmap'
+alias kdsec='kc describe secret'
+alias kdns='kc describe namespace'
+alias kdno='kc describe node'
+
+function kdlpo() {
+  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kdpo $POD $@
+}
+
+function kdlpow() {
+  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kdpow $POD $@
+}
+
+function kdlrs() {
+  RS=$(kc get replicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kdrs $RS $@
+}
+
+# DELETE
+alias krm='kc delete'
+alias krmf='kc deletei -f'
+alias krmpo='kc delete pod'
+alias krmsvc='kc delete service'
+alias krmdep='kc delete deployment'
+alias krmrs='kc delete replicaset'
+alias krming='kc delete ingress'
+alias krmcm='kc delete configmap'
+alias krmsec='kc delete secret'
+alias krmns='kc delete namespace'
+
+function krmlpo() {
+  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  krmpo $POD $@
+}
+
+function krmlrs() {
+  RS=$(kc get reolicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  krmrs $RS $@
+}
+
+# APPLY
+alias ka='kc apply -f'
+alias kak='kc apply -k'
+
+# LOG
+alias klo='kc logs -f'
+
+function klol() {
+  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  klo $POD $@
+}
+
+# EXEC
+alias kex='kc exec -it'
+
+function kexl() {
+  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kex $POD $@
+}
+
 
 # Debug
 [[ -n $DEBUG ]] && set -x
