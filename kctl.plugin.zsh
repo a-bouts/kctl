@@ -103,15 +103,15 @@ alias kak='kc apply -k'
 alias klo='kc logs -f'
 
 function klol() {
-  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  klo $POD $@
+  POD=$(kc get pod --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  klo $POD
 }
 
 # EXEC
 alias kex='kc exec -it'
 
 function kexl() {
-  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  POD=$(kc get pod --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kex $POD $@
 }
 
