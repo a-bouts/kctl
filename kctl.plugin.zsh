@@ -104,7 +104,7 @@ alias klo='kc logs -f'
 
 function klol() {
   POD=$(kc get pod --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  klo $POD
+  klo $POD $@
 }
 
 # EXEC
