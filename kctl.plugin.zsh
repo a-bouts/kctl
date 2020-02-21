@@ -28,6 +28,7 @@ alias kgcm='kc get configmap'
 alias kgsec='kc get secret'
 alias kgns='kc get namespace'
 alias kgno='kc get node'
+alias kgrb='kc get rolebinding'
 alias kgall='kc get all'
 
 function kglpo() {
@@ -57,6 +58,7 @@ alias kdcm='kc describe configmap'
 alias kdsec='kc describe secret'
 alias kdns='kc describe namespace'
 alias kdno='kc describe node'
+alias kdrb='kc describe rolebinding'
 
 function kdlpo() {
   POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -84,6 +86,7 @@ alias krming='kc delete ingress'
 alias krmcm='kc delete configmap'
 alias krmsec='kc delete secret'
 alias krmns='kc delete namespace'
+alias krmrb='kc delete rolbebinding'
 
 function krmlpo() {
   POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
