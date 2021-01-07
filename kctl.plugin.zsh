@@ -23,12 +23,15 @@ alias kgpow='kc get pod -w'
 alias kgsvc='kc get service'
 alias kgdep='kc get deployment'
 alias kgrs='kc get replicaset'
+alias kgds='kc get daemonset'
+alias kgss='kc get statefulset'
 alias kging='kc get ingress'
 alias kgcm='kc get configmap'
 alias kgsec='kc get secret'
 alias kgns='kc get namespace'
 alias kgno='kc get node'
 alias kgrb='kc get rolebinding'
+alias kgpvc='kc get pvc'
 alias kgall='kc get all'
 
 function kglpo() {
@@ -53,12 +56,15 @@ alias kdpow='kc describe pod -w'
 alias kdsvc='kc describe service'
 alias kddep='kc describe deployment'
 alias kdrs='kc describe replicaset'
+alias kdds='kc describe daemonset'
+alias kdss='kc describe statefulset'
 alias kding='kc describe ingress'
 alias kdcm='kc describe configmap'
 alias kdsec='kc describe secret'
 alias kdns='kc describe namespace'
 alias kdno='kc describe node'
 alias kdrb='kc describe rolebinding'
+alias kdpvc='kc describe pvc'
 
 function kdlpo() {
   POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -82,11 +88,14 @@ alias krmpo='kc delete pod'
 alias krmsvc='kc delete service'
 alias krmdep='kc delete deployment'
 alias krmrs='kc delete replicaset'
+alias krmds='kc delete daemonset'
+alias krmss='kc delete statefulset'
 alias krming='kc delete ingress'
 alias krmcm='kc delete configmap'
 alias krmsec='kc delete secret'
 alias krmns='kc delete namespace'
 alias krmrb='kc delete rolbebinding'
+alias krmpvc='kc delete pvc'
 
 function krmlpo() {
   POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -96,6 +105,31 @@ function krmlpo() {
 function krmlrs() {
   RS=$(kc get reolicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   krmrs $RS $@
+}
+
+# EDIT
+alias ke='kc edit'
+alias kepo='kc edit pod'
+alias kesvc='kc edit service'
+alias kedep='kc edit deployment'
+alias kers='kc edit replicaset'
+alias kess='kc edit statefulset'
+alias keds='kc edit daemonset'
+alias keing='kc edit ingress'
+alias kecm='kc edit configmap'
+alias kesec='kc edit secret'
+alias kens='kc edit namespace'
+alias kerb='kc edit rolbebinding'
+alias kepvc='kc edit pvc'
+
+function kelpo() {
+  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kepo $POD $@
+}
+
+function kelrs() {
+  RS=$(kc get reolicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kers $RS $@
 }
 
 # APPLY
@@ -116,6 +150,27 @@ alias kex='kc exec -it'
 function kexl() {
   POD=$(kc get pod --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kex $POD $@
+}
+
+
+# PORT FORWARD
+alias kpf='kc port-forward'
+
+function kpfpo() {
+  kc port-forward pod/$@
+}
+
+function kpfsvc() {
+  kc port-forward service/$@
+}
+
+function kpfdep() {
+  kc port-forward deployment/$@
+}
+
+function kpflpo() {
+  POD=$(kc get pod --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kc port-forward pod/$POD $@
 }
 
 
