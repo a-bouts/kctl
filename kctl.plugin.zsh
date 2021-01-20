@@ -94,7 +94,7 @@ alias krming='kc delete ingress'
 alias krmcm='kc delete configmap'
 alias krmsec='kc delete secret'
 alias krmns='kc delete namespace'
-alias krmrb='kc delete rolbebinding'
+alias krmrb='kc delete rolebinding'
 alias krmpvc='kc delete pvc'
 
 function krmlpo() {
@@ -119,7 +119,7 @@ alias keing='kc edit ingress'
 alias kecm='kc edit configmap'
 alias kesec='kc edit secret'
 alias kens='kc edit namespace'
-alias kerb='kc edit rolbebinding'
+alias kerb='kc edit rolebinding'
 alias kepvc='kc edit pvc'
 
 function kelpo() {
