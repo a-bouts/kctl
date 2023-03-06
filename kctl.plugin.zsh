@@ -6,6 +6,10 @@ function ksetns() {
   kubectl config set-context --current --namespace=$1
 }
 
+function kns() {
+  export KCTL_NAMESPACE=$1
+}
+
 function kusectx() {
   kubectl config use-context $1
 }
@@ -15,162 +19,209 @@ kc() {
   command kubectl $@;
 }
 
-alias k='kc'
+k() {
+  if [[ "$@" == *" -n "* || "$@" == *" --namespace "* ]];
+  then
+    kc $@;
+  else
+    kc $1 -n $KCTL_NAMESPACE ${@:2};
+  fi
+}
+
 # GET
-alias kg='kc get'
-alias kgpo='kc get pod'
-alias kgpow='kc get pod -w'
-alias kgsvc='kc get service'
-alias kgdep='kc get deployment'
-alias kgrs='kc get replicaset'
-alias kgds='kc get daemonset'
-alias kgss='kc get statefulset'
-alias kging='kc get ingress'
-alias kgcm='kc get configmap'
-alias kgsec='kc get secret'
-alias kgns='kc get namespace'
-alias kgno='kc get node'
-alias kgrb='kc get rolebinding'
-alias kgpvc='kc get pvc'
-alias kgall='kc get all'
+alias kg='k get'
+alias kgpo='kg pod'
+alias kgpow='kg pod -w'
+alias kgsvc='kg service'
+alias kgdep='kg deployment'
+alias kgrs='kg replicaset'
+alias kgds='kg daemonset'
+alias kgss='kg statefulset'
+alias kging='kg ingress'
+alias kgcm='kg configmap'
+alias kgsec='kg secret'
+alias kgns='kg namespace'
+alias kgno='kg node'
+alias kgrb='kg rolebinding'
+alias kgpv='kg pv'
+alias kgpvc='kg pvc'
+alias kgall='kg all'
 
 function kglpo() {
-  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kgpo $POD $@
 }
 
 function kglpow() {
-  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kgpow $POD $@
 }
 
 function kglrs() {
-  RS=$(kc get reolicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kgrs $RS $@
 }
 
+function kgl() {
+  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kg $1 $LAST ${@:2}
+}
+
 # DESCRIBE
-alias kd='kc describe'
-alias kdpo='kc describe pod'
-alias kdpow='kc describe pod -w'
-alias kdsvc='kc describe service'
-alias kddep='kc describe deployment'
-alias kdrs='kc describe replicaset'
-alias kdds='kc describe daemonset'
-alias kdss='kc describe statefulset'
-alias kding='kc describe ingress'
-alias kdcm='kc describe configmap'
-alias kdsec='kc describe secret'
-alias kdns='kc describe namespace'
-alias kdno='kc describe node'
-alias kdrb='kc describe rolebinding'
-alias kdpvc='kc describe pvc'
+alias kd='k describe'
+alias kdpo='kd pod'
+alias kdsvc='kd service'
+alias kddep='kd deployment'
+alias kdrs='kd replicaset'
+alias kdds='kd daemonset'
+alias kdss='kd statefulset'
+alias kding='kd ingress'
+alias kdcm='kd configmap'
+alias kdsec='kd secret'
+alias kdns='kd namespace'
+alias kdno='kd node'
+alias kdrb='kd rolebinding'
+alias kdpvc='kd pvc'
+alias kdpv='kd pv'
 
 function kdlpo() {
-  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kdpo $POD $@
 }
 
-function kdlpow() {
-  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kdpow $POD $@
-}
-
 function kdlrs() {
-  RS=$(kc get replicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kdrs $RS $@
 }
 
+function kdl() {
+  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kd $1 $LAST ${@:2}
+}
+
 # DELETE
-alias krm='kc delete'
-alias krmf='kc delete -f'
-alias krmpo='kc delete pod'
-alias krmsvc='kc delete service'
-alias krmdep='kc delete deployment'
-alias krmrs='kc delete replicaset'
-alias krmds='kc delete daemonset'
-alias krmss='kc delete statefulset'
-alias krming='kc delete ingress'
-alias krmcm='kc delete configmap'
-alias krmsec='kc delete secret'
-alias krmns='kc delete namespace'
-alias krmrb='kc delete rolebinding'
-alias krmpvc='kc delete pvc'
+alias krm='k delete'
+alias krmf='krm -f'
+alias krmk='krm -k'
+alias krmpo='krm pod'
+alias krmsvc='krm service'
+alias krmdep='krm deployment'
+alias krmrs='krm replicaset'
+alias krmds='krm daemonset'
+alias krmss='krm statefulset'
+alias krming='krm ingress'
+alias krmcm='krm configmap'
+alias krmsec='krm secret'
+alias krmns='krm namespace'
+alias krmrb='krm rolebinding'
+alias krmpvc='krm pvc'
+alias krmpv='krm pv'
 
 function krmlpo() {
-  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   krmpo $POD $@
 }
 
 function krmlrs() {
-  RS=$(kc get reolicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   krmrs $RS $@
 }
 
+function krml() {
+  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  krm $1 $LAST ${@:2}
+}
+
 # EDIT
-alias ke='kc edit'
-alias kepo='kc edit pod'
-alias kesvc='kc edit service'
-alias kedep='kc edit deployment'
-alias kers='kc edit replicaset'
-alias kess='kc edit statefulset'
-alias keds='kc edit daemonset'
-alias keing='kc edit ingress'
-alias kecm='kc edit configmap'
-alias kesec='kc edit secret'
-alias kens='kc edit namespace'
-alias kerb='kc edit rolebinding'
-alias kepvc='kc edit pvc'
+alias ke='k edit'
+alias kepo='ke pod'
+alias kesvc='ke service'
+alias kedep='ke deployment'
+alias kers='ke replicaset'
+alias kess='ke statefulset'
+alias keds='ke daemonset'
+alias keing='ke ingress'
+alias kecm='ke configmap'
+alias kesec='ke secret'
+alias kens='ke namespace'
+alias kerb='ke rolebinding'
+alias kepvc='ke pvc'
+alias kepv='ke pv'
 
 function kelpo() {
-  POD=$(kc get pod $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kepo $POD $@
 }
 
 function kelrs() {
-  RS=$(kc get reolicaset $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kers $RS $@
 }
 
+function kel() {
+  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  ke $1 $LAST ${@:2}
+}
+
 # APPLY
-alias ka='kc apply -f'
-alias kak='kc apply -k'
+alias ka='k apply -f'
+alias kk='k apply -k'
 
 # LOG
-alias klo='kc logs -f'
+alias klo='k logs -f'
 
 function klol() {
-  POD=$(kc get pod --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   klo $POD $@
 }
 
 # EXEC
-alias kex='kc exec -it'
+alias kex='k exec -it'
 
 function kexl() {
-  POD=$(kc get pod --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+
+  NMSPC=$KCTL_NAMESPACE
+  if [[ "$@" =~ "(^| )-n .*" ]];
+  then
+    NMSPC=`grep -o -e '-n [^ ]*[ $]' <<< $@ | cut -d" " -f2`
+  elif [[ "$@" =~ "(^| )--namespace .*" ]];
+  then
+    NMSPC=`grep -o -e '--namespace [^ ]*[ $]' <<< $@ | cut -d" " -f2`
+  fi
+
+  POD=$(kgpo -n $NMSPC --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kex $POD $@
 }
 
 
 # PORT FORWARD
-alias kpf='kc port-forward'
+alias kpf='k port-forward'
 
 function kpfpo() {
-  kc port-forward pod/$@
+  kpf pod/$@
 }
 
 function kpfsvc() {
-  kc port-forward service/$@
+  kpf service/$@
 }
 
 function kpfdep() {
-  kc port-forward deployment/$@
+  kpf deployment/$@
 }
 
 function kpflpo() {
-  POD=$(kc get pod --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kc port-forward pod/$POD $@
+
+  NMSPC=$KCTL_NAMESPACE
+  if [[ "$@" =~ "(^| )-n .*" ]];
+  then
+    NMSPC=`grep -o -e '-n [^ ]*[ $]' <<< $@ | cut -d" " -f2`
+  elif [[ "$@" =~ "(^| )--namespace .*" ]];
+  then
+    NMSPC=`grep -o -e '--namespace [^ ]*[ $]' <<< $@ | cut -d" " -f2`
+  fi
+
+  POD=$(kgpo -n $NMSPC --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kpfpo $POD $@
 }
 
 
@@ -189,7 +240,7 @@ KCTL_PREFIX="${KCTL_PREFIX-(}"
 KCTL_SEPARATOR="${KCTL_SEPARATOR-}"
 KCTL_DIVIDER="${KCTL_DIVIDER-:}"
 KCTL_SUFFIX="${KCTL_SUFFIX-) }"
-KCTL_SYMBOL_COLOR="${KCTL_SYMBOL_COLOR-blue}"
+KCTL_SYMBOL_COLOR="${KCTL_SYMBOL_COLOR-12}"
 KCTL_CTX_COLOR="${KCTL_CTX_COLOR-red}"
 KCTL_NS_COLOR="${KCTL_NS_COLOR-cyan}"
 KCTL_BG_COLOR="${KCTL_BG_COLOR}"
