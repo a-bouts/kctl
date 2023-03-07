@@ -19,7 +19,7 @@ kc() {
   command kubectl $@;
 }
 
-k() {
+_k() {
   if [[ "$@" == *" -n "* || "$@" == *" --namespace "* ]];
   then
     kc $@;
@@ -29,7 +29,7 @@ k() {
 }
 
 # GET
-alias kg='k get'
+alias kg='_k get'
 alias kgpo='kg pod'
 alias kgpow='kg pod -w'
 alias kgsvc='kg service'
@@ -68,7 +68,7 @@ function kgl() {
 }
 
 # DESCRIBE
-alias kd='k describe'
+alias kd='_k describe'
 alias kdpo='kd pod'
 alias kdsvc='kd service'
 alias kddep='kd deployment'
@@ -100,7 +100,7 @@ function kdl() {
 }
 
 # DELETE
-alias krm='k delete'
+alias krm='_k delete'
 alias krmf='krm -f'
 alias krmk='krm -k'
 alias krmpo='krm pod'
@@ -133,7 +133,7 @@ function krml() {
 }
 
 # EDIT
-alias ke='k edit'
+alias ke='_k edit'
 alias kepo='ke pod'
 alias kesvc='ke service'
 alias kedep='ke deployment'
@@ -164,11 +164,11 @@ function kel() {
 }
 
 # APPLY
-alias ka='k apply -f'
-alias kk='k apply -k'
+alias ka='_k apply -f'
+alias kk='_k apply -k'
 
 # LOG
-alias klo='k logs -f'
+alias klo='_k logs -f'
 
 function klol() {
   POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -176,7 +176,7 @@ function klol() {
 }
 
 # EXEC
-alias kex='k exec -it'
+alias kex='_k exec -it'
 
 function kexl() {
 
@@ -195,7 +195,7 @@ function kexl() {
 
 
 # PORT FORWARD
-alias kpf='k port-forward'
+alias kpf='_k port-forward'
 
 function kpfpo() {
   kpf pod/$@
