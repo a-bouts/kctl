@@ -20,7 +20,7 @@ kc() {
 }
 
 _k() {
-  if [[ "$@" == *" -n "* || "$@" == *" --namespace "* ]];
+  if [[ "$@" == *" -n "* || "$@" == *" --namespace "* || "$@" =~ "^(.* )?-A( .*)?$" ]];
   then
     kc $@;
   else
@@ -41,11 +41,16 @@ alias kging='kg ingress'
 alias kgcm='kg configmap'
 alias kgsec='kg secret'
 alias kgns='kg namespace'
-alias kgno='kg node'
+alias kgno='kg node -o wide'
+alias kgr='kg role'
 alias kgrb='kg rolebinding'
+alias kgcr='kg clusterrole'
+alias kgcrb='kg clusterrolebinding'
 alias kgpv='kg pv'
 alias kgpvc='kg pvc'
 alias kgall='kg all'
+alias kgj='kg job'
+alias kgcj='kg cronjob'
 
 function kglpo() {
   POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -80,9 +85,14 @@ alias kdcm='kd configmap'
 alias kdsec='kd secret'
 alias kdns='kd namespace'
 alias kdno='kd node'
+alias kdr='kd role'
 alias kdrb='kd rolebinding'
+alias kdcr='kd clusterrole'
+alias kdcrb='kd clusterrolebinding'
 alias kdpvc='kd pvc'
 alias kdpv='kd pv'
+alias kdj='kd job'
+alias kdcj='kd cronjob'
 
 function kdlpo() {
   POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -113,9 +123,15 @@ alias krming='krm ingress'
 alias krmcm='krm configmap'
 alias krmsec='krm secret'
 alias krmns='krm namespace'
+alias krmno='krm node'
+alias krmr='krm role'
 alias krmrb='krm rolebinding'
+alias krmcr='krm clusterrole'
+alias krmcrb='krm clusterrolebinding'
 alias krmpvc='krm pvc'
 alias krmpv='krm pv'
+alias krmj='krm job'
+alias krmcj='krm cronjob'
 
 function krmlpo() {
   POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -144,9 +160,14 @@ alias keing='ke ingress'
 alias kecm='ke configmap'
 alias kesec='ke secret'
 alias kens='ke namespace'
+alias ker='ke role'
 alias kerb='ke rolebinding'
+alias kecr='ke clusterrole'
+alias kecrb='ke clusterrolebinding'
 alias kepvc='ke pvc'
 alias kepv='ke pv'
+alias kej='ke job'
+alias kecj='ke cronjob'
 
 function kelpo() {
   POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -222,6 +243,12 @@ function kpflpo() {
 
   POD=$(kgpo -n $NMSPC --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kpfpo $POD $@
+}
+
+
+# DRAIN
+function kdrain() {
+  kc drain $1 --timeout=300s --ignore-daemonsets --force --delete-local-data || kc drain $1 --timeout=60s --disable-eviction --ignore-daemonsets --force --delete-local-data
 }
 
 

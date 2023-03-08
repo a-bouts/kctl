@@ -13,7 +13,7 @@ Inspired by several tools used to simplify usage of `kubectl`.
 ### Antigen
 
 ```sh
-antigen bundle ArnoBouts/kctl
+antigen bundle a-bouts/kctl
 ```
 
 ### From Source
@@ -41,6 +41,7 @@ PS1='[\u@\h \W $(kube_ps1)]\$ '
 
 |Command           |Description                                                  |
 |------------------|-------------------------------------------------------------|
+|`kns namespace`   |change current terminal namespace to `namespace`             |
 |`ksetns namespace`|change current context namespace to `namespace`              |
 |`kusectx context` |change current context to `context`                          |
 |                  |                                                             |
@@ -48,6 +49,7 @@ PS1='[\u@\h \W $(kube_ps1)]\$ '
 |`kglpo`           |`kubectl $last get pod` where $last is the last deployed pod |
 |`klol`            |`kubectl logs -f $last` where $last is the last deployed pod |
 |`kexl`            |`kubectl exec -it $last` where $last is the last deployed pod|
+|`kdrain node`     |drain the node `node`                                        |
 
 
 ### Syntax explanation
@@ -60,16 +62,16 @@ PS1='[\u@\h \W $(kube_ps1)]\$ '
   * **`d`**=`describe`, **`dl`**=`describe $last`
   * **`rm`**=`delete`, **`rml`**=`delete $last`
   * **`a`**:`apply -f`
-  * **`ak`**:`apply -k`
-  * **`k`**:`kustomize`
+  * **`k`**:`apply -k`
   * **`ex`**: `exec -i -t`, **`exl`**: `exec -i -t $last`
   * **`lo`**: `logs -f`, **`lol`**=`logs -f $last`
 * resources:
   * **`po`**=pod, **`dep`**=`deployment`, **`ing`**=`ingress`,
-    **`svc`**=`service`, **`cm`**=`configmap`, **`sec`=`secret`**,
-    **`ns`**=`namespace`, **`no`**=`node`
+    **`svc`**=`service`, **`cm`**=`configmap`, **`sec`**=`secret`,
+    **`ns`**=`namespace`, **`no`**=`node`, **`j`**=`job`, **`cj`**=`cronjob`,
+    **`r`**=`role`,**`rb`**=`rolebinding`,
+    **`cr`**=`clusterrole`, **`crb`**=`clusterrolebinding`,
 * flags:
-  * **`all`**: `--all` or `--all-namespaces` depending on the command
   * **`w`**=`-w/--watch`
 
 ## Prompt Structure
