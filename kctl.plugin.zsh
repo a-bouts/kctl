@@ -3,33 +3,56 @@
 #
 #
 function ksetns() {
-  kubectl config set-context --current --namespace=$1
+  ${KCTL_BINARY} config set-context --current --namespace=$1
+  _kctl_get_ns
+  _kctl_use_ns $1
 }
 
 function kns() {
-  export KCTL_NAMESPACE=$1
+  _kctl_use_ns $1
 }
 
-function kusectx() {
-  kubectl config use-context $1
-}
-
-kc() {
-  echo "+ kubectl $@">&2;
-  command kubectl $@;
-}
-
-_k() {
-  if [[ "$@" == *" -n "* || "$@" == *" --namespace "* || "$@" =~ "^(.* )?-A( .*)?$" ]];
+function ksetctx() {
+  ${KCTL_BINARY} config use-context $1
+  if [ $? -eq 0 ]
   then
-    kc $@;
-  else
-    kc $1 -n $KCTL_NAMESPACE ${@:2};
+    _kctl_use_context $1
   fi
 }
 
+function kctx() {
+  _kctl_use_context $1
+}
+
+kc() {
+  echo "+ ${KCTL_BINARY} $@">&2;
+  command ${KCTL_BINARY} $@;
+}
+
+k_with_namespace() {
+  if [[ "$@" =~ "^(.* )?-n( .*)?$" || "$@" =~ "^(.* )?--namespace( .*)?$" || "$@" =~ "^(.* )?-A( .*)?$" || "$KCTL_USE_NAMESPACE" == "$KCTL_NAMESPACE" ]];
+  then
+    k_with_context $@;
+  else
+    k_with_context -n $KCTL_USE_NAMESPACE $@;
+  fi
+}
+
+k_with_context() {
+  if [[ "$@" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
+  then
+    kc $@;
+  else
+    kc --context $KCTL_USE_CONTEXT $@;
+  fi
+}
+
+k() {
+  k_with_namespace $@
+}
+
 # GET
-alias kg='_k get'
+alias kg='k get'
 alias kgpo='kg pod'
 alias kgpow='kg pod -w'
 alias kgsvc='kg service'
@@ -73,7 +96,7 @@ function kgl() {
 }
 
 # DESCRIBE
-alias kd='_k describe'
+alias kd='k describe'
 alias kdpo='kd pod'
 alias kdsvc='kd service'
 alias kddep='kd deployment'
@@ -110,7 +133,7 @@ function kdl() {
 }
 
 # DELETE
-alias krm='_k delete'
+alias krm='k delete'
 alias krmf='krm -f'
 alias krmk='krm -k'
 alias krmpo='krm pod'
@@ -149,7 +172,7 @@ function krml() {
 }
 
 # EDIT
-alias ke='_k edit'
+alias ke='k edit'
 alias kepo='ke pod'
 alias kesvc='ke service'
 alias kedep='ke deployment'
@@ -185,11 +208,11 @@ function kel() {
 }
 
 # APPLY
-alias ka='_k apply -f'
-alias kk='_k apply -k'
+alias ka='k apply -f'
+alias kk='k apply -k'
 
 # LOG
-alias klo='_k logs -f'
+alias klo='k logs -f'
 
 function klol() {
   POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -197,11 +220,11 @@ function klol() {
 }
 
 # EXEC
-alias kex='_k exec -it'
+alias kex='k exec -it'
 
 function kexl() {
 
-  NMSPC=$KCTL_NAMESPACE
+  NMSPC=$KCTL_USE_NAMESPACE
   if [[ "$@" =~ "(^| )-n .*" ]];
   then
     NMSPC=`grep -o -e '-n [^ ]*[ $]' <<< $@ | cut -d" " -f2`
@@ -216,7 +239,7 @@ function kexl() {
 
 
 # PORT FORWARD
-alias kpf='_k port-forward'
+alias kpf='k port-forward'
 
 function kpfpo() {
   kpf pod/$@
@@ -232,7 +255,7 @@ function kpfdep() {
 
 function kpflpo() {
 
-  NMSPC=$KCTL_NAMESPACE
+  NMSPC=$KCTL_USE_NAMESPACE
   if [[ "$@" =~ "(^| )-n .*" ]];
   then
     NMSPC=`grep -o -e '-n [^ ]*[ $]' <<< $@ | cut -d" " -f2`
@@ -295,7 +318,8 @@ _kctl_init() {
       _KCTL_DEFAULT_FG="%f"
       setopt PROMPT_SUBST
       autoload -U add-zsh-hook
-      add-zsh-hook precmd _kctl_update_cache
+      #add-zsh-hook precmd _kctl_update_cache
+      add-zsh-hook preexec _kctl_update_cache
       zmodload -F zsh/stat b:zstat
       zmodload zsh/datetime
       ;;
@@ -307,6 +331,9 @@ _kctl_init() {
       [[ $PROMPT_COMMAND =~ _kctl_update_cache ]] || PROMPT_COMMAND="_kctl_update_cache;${PROMPT_COMMAND:-:}"
       ;;
   esac
+  _kctl_update_cache
+  _kctl_use_context "${KCTL_CONTEXT}"
+  _kctl_use_ns "${KCTL_NAMESPACE}"
 }
 
 _kctl_color_fg() {
@@ -469,21 +496,41 @@ _kctl_get_context() {
     KCTL_CONTEXT="$(${KCTL_BINARY} config current-context 2>/dev/null)"
     # Set namespace to 'N/A' if it is not defined
     KCTL_CONTEXT="${KCTL_CONTEXT:-N/A}"
+  fi
+}
 
-    if [[ ! -z "${KCTL_CLUSTER_FUNCTION}" ]]; then
-      KCTL_CONTEXT=$($KCTL_CLUSTER_FUNCTION $KCTL_CONTEXT)
+_kctl_use_context() {
+  if [[ "${KCTL_CONTEXT_ENABLE}" == true ]]
+  then
+    kubectl version --context "$1" 1>/dev/null
+    if [ $? -eq 0 ]
+    then
+      KCTL_USE_CONTEXT="$1"
+      if [[ ! -z "${KCTL_CLUSTER_FUNCTION}" ]]; then
+        $KCTL_CLUSTER_FUNCTION $KCTL_USE_CONTEXT
+      fi
+      # Reload namespace from context
+      _kctl_get_ns
+      # Use this namespace
+      _kctl_use_ns "$KCTL_NAMESPACE"
     fi
   fi
 }
 
 _kctl_get_ns() {
   if [[ "${KCTL_NS_ENABLE}" == true ]]; then
-    KCTL_NAMESPACE="$(${KCTL_BINARY} config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
+    KCTL_NAMESPACE="$(k_with_context config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
     # Set namespace to 'default' if it is not defined
     KCTL_NAMESPACE="${KCTL_NAMESPACE:-default}"
+  fi
+}
 
+_kctl_use_ns() {
+  if [[ "${KCTL_NS_ENABLE}" == true ]]
+  then
+    KCTL_USE_NAMESPACE="$1"
     if [[ ! -z "${KCTL_NAMESPACE_FUNCTION}" ]]; then
-        KCTL_NAMESPACE=$($KCTL_NAMESPACE_FUNCTION $KCTL_NAMESPACE)
+        $KCTL_NAMESPACE_FUNCTION $KCTL_USE_NAMESPACE
     fi
   fi
 }
@@ -559,7 +606,7 @@ kctloff() {
 # Build our prompt
 kctl() {
   [[ "${KCTL_ENABLED}" == "off" ]] && return
-  [[ -z "${KCTL_CONTEXT}" ]] && [[ "${KCTL_CONTEXT_ENABLE}" == true ]] && return
+  [[ -z "${KCTL_USE_CONTEXT}" ]] && [[ "${KCTL_CONTEXT_ENABLE}" == true ]] && return
 
   local KCTL
   local KCTL_RESET_COLOR="${_KCTL_OPEN_ESC}${_KCTL_DEFAULT_FG}${_KCTL_CLOSE_ESC}"
@@ -579,7 +626,7 @@ kctl() {
 
   # Context
   if [[ "${KCTL_CONTEXT_ENABLE}" == true ]]; then
-    KCTL+="$(_kctl_color_fg $KCTL_CTX_COLOR)${KCTL_CONTEXT}${KCTL_RESET_COLOR}"
+    KCTL+="$(_kctl_color_fg $KCTL_CTX_COLOR)${KCTL_USE_CONTEXT}${KCTL_RESET_COLOR}"
   fi
 
   # Namespace
@@ -587,7 +634,7 @@ kctl() {
     if [[ -n "${KCTL_DIVIDER}" ]] && [[ "${KCTL_CONTEXT_ENABLE}" == true ]]; then
       KCTL+="${KCTL_DIVIDER}"
     fi
-    KCTL+="$(_kctl_color_fg ${KCTL_NS_COLOR})${KCTL_NAMESPACE}${KCTL_RESET_COLOR}"
+    KCTL+="$(_kctl_color_fg ${KCTL_NS_COLOR})${KCTL_USE_NAMESPACE}${KCTL_RESET_COLOR}"
   fi
 
   # Suffix

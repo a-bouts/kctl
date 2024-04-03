@@ -43,7 +43,8 @@ PS1='[\u@\h \W $(kube_ps1)]\$ '
 |------------------|-------------------------------------------------------------|
 |`kns namespace`   |change current terminal namespace to `namespace`             |
 |`ksetns namespace`|change current context namespace to `namespace`              |
-|`kusectx context` |change current context to `context`                          |
+|`kctx context`    |change current terminal context to `context`                          |
+|`ksetctx context` |change current context to `context`                          |
 |                  |                                                             |
 |`kgpo`            |`kubectl get pod`                                            |
 |`kglpo`           |`kubectl $last get pod` where $last is the last deployed pod |
