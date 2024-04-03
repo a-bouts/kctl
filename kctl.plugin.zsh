@@ -4,6 +4,12 @@
 #
 function ksetns() {
   kubectl config set-context --current --namespace=$1
+  export KCTL_CURRENT_NAMESPACE=$1
+  export KCTL_NAMESPACE=$1
+}
+
+function kusens() {
+  ksetns $@
 }
 
 function kns() {
@@ -12,6 +18,21 @@ function kns() {
 
 function kusectx() {
   kubectl config use-context $1
+  export KCTL_CURRENT_CONTEXT=$1
+  export KCTL_CONTEXT=$1
+  echo -e "\033]50;SetProfile=Default\a"
+  echo -e "\033]50;SetProfile=$1\a"
+}
+
+function ksetctx() {
+  kusectx $@
+}
+
+function kctx() {
+  export KCTL_CURRENT_CONTEXT=$(kubectl config current-context)
+  export KCTL_CONTEXT=$1
+  echo -e "\033]50;SetProfile=Default\a"
+  echo -e "\033]50;SetProfile=$1\a"
 }
 
 kc() {
@@ -19,17 +40,35 @@ kc() {
   command kubectl $@;
 }
 
-_k() {
-  if [[ "$@" == *" -n "* || "$@" == *" --namespace "* || "$@" =~ "^(.* )?-A( .*)?$" ]];
+k_with_namespace() {
+  if [[ "$@" =~ "^(.* )?-n( .*)?$" || "$@" =~ "^(.* )?--namespace( .*)?$" || "$@" =~ "^(.* )?-A( .*)?$" || "$KCTL_NAMESPACE" == "$KCTL_CURRENT_NAMESPACE" ]];
+  then
+    k_with_context $@;
+  else
+    k_with_context -n $KCTL_NAMESPACE $@;
+  fi
+}
+
+k_with_context() {
+  if [[ "$@" =~ "^(.* )?--context( .*)?$" || "$KCTL_CONTEXT" == "$KCTL_CURRENT_CONTEXT" ]];
   then
     kc $@;
   else
-    kc $1 -n $KCTL_NAMESPACE ${@:2};
+    kc --context $KCTL_CONTEXT $@;
+  fi
+}
+
+k() {
+  if [[ -n "${KCTL_PREVIOUS_CONTEXT}" && "${KCTL_PREVIOUS_CONTEXT}" != "${KCTL_CONTEXT}" ]]
+  then
+    echo "k8s context changed"
+  else
+    k_with_namespace $@
   fi
 }
 
 # GET
-alias kg='_k get'
+alias kg='k get'
 alias kgpo='kg pod'
 alias kgpow='kg pod -w'
 alias kgsvc='kg service'
@@ -73,7 +112,7 @@ function kgl() {
 }
 
 # DESCRIBE
-alias kd='_k describe'
+alias kd='k describe'
 alias kdpo='kd pod'
 alias kdsvc='kd service'
 alias kddep='kd deployment'
@@ -110,7 +149,7 @@ function kdl() {
 }
 
 # DELETE
-alias krm='_k delete'
+alias krm='k delete'
 alias krmf='krm -f'
 alias krmk='krm -k'
 alias krmpo='krm pod'
@@ -149,7 +188,7 @@ function krml() {
 }
 
 # EDIT
-alias ke='_k edit'
+alias ke='k edit'
 alias kepo='ke pod'
 alias kesvc='ke service'
 alias kedep='ke deployment'
@@ -185,11 +224,11 @@ function kel() {
 }
 
 # APPLY
-alias ka='_k apply -f'
-alias kk='_k apply -k'
+alias ka='k apply -f'
+alias kk='k apply -k'
 
 # LOG
-alias klo='_k logs -f'
+alias klo='k logs -f'
 
 function klol() {
   POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
@@ -197,7 +236,7 @@ function klol() {
 }
 
 # EXEC
-alias kex='_k exec -it'
+alias kex='k exec -it'
 
 function kexl() {
 
@@ -216,7 +255,7 @@ function kexl() {
 
 
 # PORT FORWARD
-alias kpf='_k port-forward'
+alias kpf='k port-forward'
 
 function kpfpo() {
   kpf pod/$@
@@ -296,6 +335,7 @@ _kctl_init() {
       setopt PROMPT_SUBST
       autoload -U add-zsh-hook
       add-zsh-hook precmd _kctl_update_cache
+      add-zsh-hook preexec _kctl_update_cache
       zmodload -F zsh/stat b:zstat
       zmodload zsh/datetime
       ;;
@@ -443,6 +483,10 @@ _kctl_update_cache() {
     return
   fi
 
+  if [[ "${KCTL_CONTEXT_ENABLE}" == true ]]; then
+    KCTL_PREVIOUS_CONTEXT="${KCTL_CONTEXT}"
+  fi
+
   if [[ "${KUBECONFIG}" != "${KCTL_KUBECONFIG_CACHE}" ]]; then
     # User changed KUBECONFIG; unconditionally refetch.
     KCTL_KUBECONFIG_CACHE=${KUBECONFIG}
@@ -473,6 +517,9 @@ _kctl_get_context() {
     if [[ ! -z "${KCTL_CLUSTER_FUNCTION}" ]]; then
       KCTL_CONTEXT=$($KCTL_CLUSTER_FUNCTION $KCTL_CONTEXT)
     fi
+    KCTL_CURRENT_CONTEXT="${KCTL_CONTEXT}"
+    echo -e "\033]50;SetProfile=Default\a"
+    echo -e "\033]50;SetProfile=${KCTL_CONTEXT}\a"
   fi
 }
 
@@ -485,6 +532,7 @@ _kctl_get_ns() {
     if [[ ! -z "${KCTL_NAMESPACE_FUNCTION}" ]]; then
         KCTL_NAMESPACE=$($KCTL_NAMESPACE_FUNCTION $KCTL_NAMESPACE)
     fi
+    KCTL_CURRENT_NAMESPACE="${KCTL_NAMESPACE}"
   fi
 }
 
