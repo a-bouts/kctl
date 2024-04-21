@@ -15,8 +15,15 @@ if [[ ! -f "$ZSH_CACHE_DIR/completions/_kubectl" ]]; then
   _comps[kubectl]=_kubectl
 fi
 
-#kubectl completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
+kubectl completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
 
+__kubectl_debug()
+{
+    local file="$BASH_COMP_DEBUG_FILE"
+    if [[ -n ${file} ]]; then
+        echo "$*" >> "${file}"
+    fi
+}
 
 function ksetns() {
   ${KCTL_BINARY} config set-context --current --namespace=$1
@@ -27,6 +34,16 @@ function ksetns() {
 function kns() {
   _kctl_use_ns $1
 }
+
+_kns() {
+  __kubectl_debug "$(_k_with_context)"
+  words=("kubectl" "${$(_k_with_context)[@]}" "get" "namespace" "${(@)words[2,$#words]}")
+  CURRENT=$#words
+  _kubectl
+}
+
+compdef _kns kns
+compdef _kns ksetns
 
 function ksetctx() {
   ${KCTL_BINARY} config use-context $1
@@ -47,6 +64,7 @@ _kctx() {
 }
 
 compdef _kctx kctx
+compdef _kctx kusectx
 
 kc() {
   echo "+ ${KCTL_BINARY} $@">&2;
@@ -62,6 +80,14 @@ k_with_namespace() {
   fi
 }
 
+_k_with_namespace() {
+  if [[ ${words[(ie)"-n"]} -lt ${#words} || ${words[(ie)"--namespace"]} -lt ${#words} || ${words[(ie)"-A"]} -lt ${#words} || "$KCTL_USE_NAMESPACE" == "$KCTL_NAMESPACE" ]];
+  then
+  else
+    echo "--namespace" "$KCTL_USE_NAMESPACE"
+  fi
+}
+
 k_with_context() {
   if [[ "$@" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
   then
@@ -71,9 +97,26 @@ k_with_context() {
   fi
 }
 
+_k_with_context() {
+  if [[ ${words[(ie)"--context"]} -lt ${#words} || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
+  then
+  else
+    echo "--context" "$KCTL_USE_CONTEXT"
+  fi
+}
+
 k() {
   k_with_namespace $@
 }
+
+_k() {
+  params=("${(@)words[2,$#words]}")
+  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "${params[@]}")
+  CURRENT=$#words
+  _kubectl
+}
+
+compdef _k k
 
 # GET
 alias kg='k get'
@@ -119,6 +162,15 @@ function kgl() {
   kg $1 $LAST ${@:2}
 }
 
+_kgl() {
+  params=("${(@)words[2,$#words]}")
+  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "${params[@]}")
+  CURRENT=$#words
+  _kubectl
+}
+
+compdef _kgl kgl
+
 # DESCRIBE
 alias kd='k describe'
 alias kdpo='kd pod'
@@ -155,6 +207,15 @@ function kdl() {
   LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   kd $1 $LAST ${@:2}
 }
+
+_kdl() {
+  params=("${(@)words[2,$#words]}")
+  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "describe" "${params[@]}")
+  CURRENT=$#words
+  _kubectl
+}
+
+compdef _kdl kdl
 
 # DELETE
 alias krm='k delete'
@@ -195,6 +256,15 @@ function krml() {
   krm $1 $LAST ${@:2}
 }
 
+_krml() {
+  params=("${(@)words[2,$#words]}")
+  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "delete" "${params[@]}")
+  CURRENT=$#words
+  _kubectl
+}
+
+compdef _krml krml
+
 # EDIT
 alias ke='k edit'
 alias kepo='ke pod'
@@ -230,6 +300,15 @@ function kel() {
   LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
   ke $1 $LAST ${@:2}
 }
+
+_kel() {
+  params=("${(@)words[2,$#words]}")
+  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "edit" "${params[@]}")
+  CURRENT=$#words
+  _kubectl
+}
+
+compdef _kel kel
 
 # APPLY
 alias ka='k apply -f'
@@ -269,13 +348,49 @@ function kpfpo() {
   kpf pod/$@
 }
 
+_kpfpo() {
+  if [[ $#words -lt 3 ]]
+  then
+    params=("${(@)words[2,$#words]}")
+    words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "pod" "${params[@]}")
+    CURRENT=$#words
+    _kubectl
+  fi
+}
+
+compdef _kpfpo kpfpo
+
 function kpfsvc() {
   kpf service/$@
 }
 
+_kpfsvc() {
+  if [[ $#words -lt 3 ]]
+  then
+    params=("${(@)words[2,$#words]}")
+    words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "service" "${params[@]}")
+    CURRENT=$#words
+    _kubectl
+  fi
+}
+
+compdef _kpfsvc kpfsvc
+
 function kpfdep() {
   kpf deployment/$@
 }
+
+_kpfdep() {
+  if [[ $#words -lt 3 ]]
+  then
+    params=("${(@)words[2,$#words]}")
+    words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "deployment" "${params[@]}")
+    CURRENT=$#words
+    _kubectl
+  fi
+}
+
+compdef _kpfdep kpfdep
 
 function kpflpo() {
 
@@ -297,6 +412,15 @@ function kpflpo() {
 function kdrain() {
   kc drain $1 --timeout=300s --ignore-daemonsets --force --delete-emptydir-data || kc drain $1 --timeout=60s --disable-eviction --ignore-daemonsets --force --delete-emptydir-data
 }
+
+_kdrain() {
+  params=("${(@)words[2,$#words]}")
+  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "drain" "${params[@]}")
+  CURRENT=$#words
+  _kubectl
+}
+
+compdef _kdrain kdrain
 
 
 # Debug
