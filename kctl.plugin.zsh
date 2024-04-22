@@ -64,7 +64,7 @@ _kctx() {
 }
 
 compdef _kctx kctx
-compdef _kctx kusectx
+compdef _kctx ksetctx
 
 kc() {
   echo "+ ${KCTL_BINARY} $@">&2;
