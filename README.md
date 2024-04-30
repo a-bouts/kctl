@@ -1,8 +1,7 @@
 kctl: Kubernetes prompt for bash and zsh
 ============================================
 
-A script that lets you add the current Kubernetes context and namespace
-configured on `kubectl` to your Bash/Zsh prompt strings (i.e. the `$PS1`).
+A script that lets you manage local Kubernetes context and namespace per terminal.
 
 Inspired by several tools used to simplify usage of `kubectl`.
 
@@ -47,7 +46,7 @@ PS1='[\u@\h \W $(kube_ps1)]\$ '
 |`ksetctx context` |change current context to `context`                          |
 |                  |                                                             |
 |`kgpo`            |`kubectl get pod`                                            |
-|`kglpo`           |`kubectl $last get pod` where $last is the last deployed pod |
+|`kglpo`           |`kubectl get pod $last` where $last is the last deployed pod |
 |`klol`            |`kubectl logs -f $last` where $last is the last deployed pod |
 |`kexl`            |`kubectl exec -it $last` where $last is the last deployed pod|
 |`kdrain node`     |drain the node `node`                                        |
@@ -60,6 +59,7 @@ PS1='[\u@\h \W $(kube_ps1)]\$ '
 * **`k`**=`kubectl`
 * commands:
   * **`g`**=`get`, **`gl`**=`get $last`
+  * **`y`**=`get -o yaml (| yh)`, **`gl`**=`get $last -o yaml (| yh)`
   * **`d`**=`describe`, **`dl`**=`describe $last`
   * **`rm`**=`delete`, **`rml`**=`delete $last`
   * **`a`**:`apply -f`
@@ -113,6 +113,7 @@ the following environment variables:
 | Variable | Default | Meaning |
 | :------- | :-----: | ------- |
 | `KCTL_BINARY` | `kubectl` | Default Kubernetes binary |
+| `FLUX_BINARY` | `flux` | Default Flux binary |
 | `KCTL_NS_ENABLE` | `true` | Display the namespace. If set to `false`, this will also disable `KCTL_DIVIDER` |
 | `KCTL_PREFIX` | `(` | Prompt opening character  |
 | `KCTL_SYMBOL_ENABLE` | `true ` | Display the prompt Symbol. If set to `false`, this will also disable `KCTL_SEPARATOR` |
@@ -121,8 +122,8 @@ the following environment variables:
 | `KCTL_SEPARATOR` | &#124; | Separator between symbol and context name |
 | `KCTL_DIVIDER` | `:` | Separator between context and namespace |
 | `KCTL_SUFFIX` | `)` | Prompt closing character |
-| `KCTL_CLUSTER_FUNCTION` | No default, must be user supplied | Function to customize how cluster is displayed |
-| `KCTL_NAMESPACE_FUNCTION` | No default, must be user supplied | Function to customize how namespace is displayed |
+| `KCTL_CLUSTER_FUNCTION` | No default, must be user supplied | Callback function on context changed |
+| `KCTL_NAMESPACE_FUNCTION` | No default, must be user supplied | Callback function on namespace changed |
 
 For terminals that do not support UTF-8, the symbol will be replaced with the
 string `k8s`.
@@ -131,6 +132,22 @@ To disable a feature, set it to an empty string:
 
 ```
 KCTL_SEPARATOR=''
+```
+
+## iTerm2 profiles
+
+An iTerm2 profile can be used per cluster (using specific theme on prod cluster)
+
+Add following function to your .zshrc file and create iTerm2 profiles using kubectl context names.
+
+```bash
+function _set_profile() {
+  echo -e "\033]50;SetProfile=Default\a"
+  echo -e "\033]50;SetProfile=$1\a"
+  echo "Set profile $1"
+}
+
+export KCTL_CLUSTER_FUNCTION=_set_profile
 ```
 
 ## Colors
@@ -163,40 +180,3 @@ black, red, green, yellow, blue, magenta, cyan
 
 256 colors are available by specifying the numerical value as the variable
 argument.
-
-## Customize display of cluster name and namespace
-
-You can change how the cluster name and namespace are displayed using the
-`KCTL_CLUSTER_FUNCTION` and `KCTL_NAMESPACE_FUNCTION` variables
-respectively.
-
-For the following examples let's assume the following:
-
-cluster name: `sandbox.k8s.example.com`
-namespace: `alpha`
-
-If you're using domain style cluster names, your prompt will get quite long
-very quickly. Let's say you only want to display the first portion of the
-cluster name (`sandbox`), you could do that by adding the following:
-
-```sh
-function get_cluster_short() {
-  echo "$1" | cut -d . -f1
-}
-
-KCTL_CLUSTER_FUNCTION=get_cluster_short
-```
-
-The same pattern can be followed to customize the display of the namespace.
-Let's say you would prefer the namespace to be displayed in all uppercase
-(`ALPHA`), here's one way you could do that:
-
-```sh
-function get_namespace_upper() {
-    echo "$1" | tr '[:lower:]' '[:upper:]'
-}
-
-export KCTL_NAMESPACE_FUNCTION=get_namespace_upper
-```
-
-In both cases, the variable is set to the name of the function, and you must have defined the function in your shell configuration before kube_ps1 is called. The function must accept a single parameter and echo out the final value.

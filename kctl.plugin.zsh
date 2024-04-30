@@ -80,11 +80,11 @@ _flx() {
 }
 
 k_with_namespace() {
-  if [[ "$@" =~ "^(.* )?-n( .*)?$" || "$@" =~ "^(.* )?--namespace( .*)?$" || "$@" =~ "^(.* )?-A( .*)?$" || "$KCTL_USE_NAMESPACE" == "$KCTL_NAMESPACE" ]];
+  if [[ "${@:3}" =~ "^(.* )?-n( .*)?$" || "${@:3}" =~ "^(.* )?--namespace( .*)?$" || "${@:3}" =~ "^(.* )?-A( .*)?$" || "$KCTL_USE_NAMESPACE" == "$KCTL_NAMESPACE" ]];
   then
-    k_with_context $@;
+    $1 $2 ${@:3};
   else
-    k_with_context -n $KCTL_USE_NAMESPACE $@;
+    $1 $2 -n $KCTL_USE_NAMESPACE ${@:3};
   fi
 }
 
@@ -97,11 +97,11 @@ _k_with_namespace() {
 }
 
 k_with_context() {
-  if [[ "$@" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
+  if [[ "${@:2}" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
   then
-    kc $@;
+    $1 ${@:2};
   else
-    kc --context $KCTL_USE_CONTEXT $@;
+    $1 --context $KCTL_USE_CONTEXT ${@:2};
   fi
 }
 
@@ -114,7 +114,7 @@ _k_with_context() {
 }
 
 k() {
-  k_with_namespace $@
+  k_with_namespace k_with_context kc $@
 }
 
 _k() {
@@ -313,6 +313,67 @@ _kgl() {
 }
 
 compdef _kgl kgl
+
+# GET YAML
+_kcy() {
+  echo "\033[0;33m>\033[0m \033[1;30m${KCTL_BINARY} $@ | yh\033[0m">&2;
+  command ${KCTL_BINARY} $@ | yh;
+  echo "\033[0;33m<\033[0m \033[1;30m${KCTL_BINARY} $@ | yh\033[0m">&2;
+}
+function ky() {
+  if ! _kctl_binary_check "yh"; then
+    echo "You must install yh to enable yaml highlightening : https://github.com/andreazorzetto/yh" >&2
+    k_with_namespace k_with_context kc get "$@" -o yaml
+  else
+    k_with_namespace k_with_context _kcy get "$@" -o yaml
+  fi
+}
+compdef _kgl ky
+
+alias kypo='ky pod'
+alias kysvc='ky service'
+alias kydep='ky deployment'
+alias kyrs='ky replicaset'
+alias kyds='ky daemonset'
+alias kyss='ky statefulset'
+alias kying='ky ingress'
+alias kycm='ky configmap'
+alias kysec='ky secret'
+alias kyns='ky namespace'
+alias kyno='ky node'
+alias kyr='ky role'
+alias kyrb='ky rolebinding'
+alias kycr='ky clusterrole'
+alias kycrb='ky clusterrolebinding'
+alias kypv='ky pv'
+alias kypvc='ky pvc'
+alias kyj='ky job'
+alias kycj='ky cronjob'
+
+function kylpo() {
+  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kypo $POD $@
+}
+
+function kylrs() {
+  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  kyrs $RS $@
+}
+
+function kyl() {
+  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
+  ky $1 $LAST ${@:2}
+}
+
+_kyl() {
+  params=("${(@)words[2,$#words]}")
+  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "${params[@]}")
+  CURRENT=$#words
+  _kubectl
+}
+
+compdef _kyl kyl
+
 
 # DESCRIBE
 alias kd='k describe'
@@ -813,7 +874,7 @@ _kctl_use_context() {
 
 _kctl_get_ns() {
   if [[ "${KCTL_NS_ENABLE}" == true ]]; then
-    KCTL_NAMESPACE="$(k_with_context config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
+    KCTL_NAMESPACE="$(k_with_context kc config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
     # Set namespace to 'default' if it is not defined
     KCTL_NAMESPACE="${KCTL_NAMESPACE:-default}"
   fi
@@ -939,3 +1000,129 @@ kctl() {
 
   echo "${KCTL}"
 }
+
+#
+# Oh-My-Zsh Compatibility
+#
+
+# Apply a YML file
+alias kaf='ka'
+
+# Drop into an interactive terminal on a container
+alias keti='kex'
+
+# General aliases
+alias kdel='krm'
+alias kdelf='krm -f'
+
+# Pod management.
+alias kgp='kgpo'
+alias kgpa='kgpo -A'
+alias kgpw='kgpow'
+alias kgpwide='kgpo -o wide'
+alias kep='kepo'
+alias kdp='kdpo'
+alias kdelp='krmpo'
+alias kgpall='kgpo -A -o wide'
+
+# get pod by label: kgpl "app=myapp" -n myns
+alias kgpl='kgpo -l'
+
+# get pod by namespace: kgpn kube-system"
+alias kgpn='kgpo -n'
+
+# Service management.
+alias kgs='kgsvc'
+alias kgsa='kgsvc --all-namespaces'
+alias kgsw='kgsvc --watch'
+alias kgswide='kgsvc -o wide'
+alias kes='kesvc'
+alias kds='kdsvc'
+alias kdels='krmsvc'
+
+# Ingress management
+alias kgi='kging'
+alias kgia='kging --all-namespaces'
+alias kei='keing'
+alias kdi='kding'
+alias kdeli='krming'
+
+# Namespace management
+alias kdelns='krmns'
+alias kcn='ksetns'
+
+# ConfigMap management
+alias kgcma='kgcm --all-namespaces'
+alias kdelcm='krmcm'
+
+# Secret management
+alias kgseca='kgsec --all-namespaces'
+alias kdelsec='krmsec'
+
+# Deployment management.
+alias kgd='kgdep'
+alias kgda='kgdep --all-namespaces'
+alias kgdw='kgdep --watch'
+alias kgdwide='kgdep -o wide'
+alias ked='kedep'
+alias kdd='kddep'
+alias kdeld='krmdep'
+alias ksd='k scale deployment'
+alias krsd='k rollout status deployment'
+
+function kres(){
+  k set env $@ REFRESHED_AT=$(date +%Y%m%d%H%M%S)
+}
+
+# Rollout management.
+alias krh='k rollout history'
+alias kru='k rollout undo'
+
+# Statefulset management.
+alias kgssa='kgss --all-namespaces'
+alias kgssw='kgss --watch'
+alias kgsswide='kgss -o wide'
+alias kdelss='krmss'
+alias ksss='k scale statefulset'
+alias krsss='k rollout status statefulset'
+
+# Tools for accessing all information
+alias kga='k get all'
+alias kgaa='k get all --all-namespaces'
+
+# Logs
+alias kl='klo'
+alias kl1h='klo --since 1h'
+alias kl1m='klo --since 1m'
+alias kl1s='klo --since 1s'
+alias klf='klo -f'
+alias klf1h='klo --since 1h -f'
+alias klf1m='klo --since 1m -f'
+alias klf1s='klo --since 1s -f'
+
+# File copy
+alias kcp='k cp'
+
+# Node Management
+alias keno='k edit node'
+alias kdelno='krmno'
+
+# PVC management.
+alias kgpvca='kgpvc --all-namespaces'
+alias kgpvcw='kgpvc --watch'
+alias kdelpvc='krmpvc'
+
+# Service account management.
+alias kdsa="k describe sa"
+alias kdelsa="k delete sa"
+
+# DaemonSet management.
+alias kgdsa='kgds --all-namespaces'
+alias kgdsw='kgds --watch'
+alias kdelds='krmds'
+
+# CronJob management.
+alias kdelcj='krmcj'
+
+# Job management.
+alias kdelj='krmj'
