@@ -3,7 +3,9 @@
 #
 #
 
-if (( ! $+commands[kubectl] )); then
+KCTL_BINARY="${KCTL_BINARY:-kubectl}"
+
+if (( ! $+commands[${KCTL_BINARY}] )); then
   return
 fi
 
@@ -16,16 +18,6 @@ if [[ ! -f "$ZSH_CACHE_DIR/completions/_kubectl" ]]; then
 fi
 
 kubectl completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
-
-# If the completion file doesn't exist yet, we need to autoload it and
-# bind it to `flux`. Otherwise, compinit will have already done that.
-if [[ ! -f "$ZSH_CACHE_DIR/completions/_flux" ]]; then
-  typeset -g -A _comps
-  autoload -Uz _flux
-  _comps[flux]=_flux
-fi
-
-flux completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_flux" &|
 
 function ksetns() {
   ${KCTL_BINARY} config set-context --current --namespace=$1
@@ -67,29 +59,25 @@ _kctx() {
 compdef _kctx kctx
 compdef _kctx ksetctx
 
-kc() {
-  echo "\033[0;33m>\033[0m \033[1;30m${KCTL_BINARY} $@\033[0m">&2;
-  command ${KCTL_BINARY} $@;
-  echo "\033[0;33m<\033[0m \033[1;30m${KCTL_BINARY} $@\033[0m">&2;
-}
-
-_flx() {
-  echo "\033[0;33m>\033[0m \033[1;30m${FLUX_BINARY} $@\033[0m">&2;
-  command ${FLUX_BINARY} $@;
-  echo "\033[0;33m<\033[0m \033[1;30m${FLUX_BINARY} $@\033[0m">&2;
+_kctl_trace() {
+  echo "\033[0;33m>\033[0m \033[1;30m$@\033[0m">&2;
+  command $@;
+  echo "\033[0;33m<\033[0m \033[1;30m$@\033[0m">&2;
 }
 
 k_with_namespace() {
-  if [[ "${@:3}" =~ "^(.* )?-n( .*)?$" || "${@:3}" =~ "^(.* )?--namespace( .*)?$" || "${@:3}" =~ "^(.* )?-A( .*)?$" || "$KCTL_USE_NAMESPACE" == "$KCTL_NAMESPACE" ]];
+  DEFAULT_NAMESPACE=$1
+  if [[ "${@:5}" =~ "^(.* )?-n( .*)?$" || "${@:5}" =~ "^(.* )?--namespace( .*)?$" || "${@:5}" =~ "^(.* )?-A( .*)?$" || "$KCTL_USE_NAMESPACE" == "$DEFAULT_NAMESPACE" ]];
   then
-    $1 $2 ${@:3};
+    $2 $3 $4 ${@:5};
   else
-    $1 $2 -n $KCTL_USE_NAMESPACE ${@:3};
+    $2 $3 $4 -n $KCTL_USE_NAMESPACE ${@:5};
   fi
 }
 
 _k_with_namespace() {
-  if [[ ${words[(ie)"-n"]} -lt ${#words} || ${words[(ie)"--namespace"]} -lt ${#words} || ${words[(ie)"-A"]} -lt ${#words} || "$KCTL_USE_NAMESPACE" == "$KCTL_NAMESPACE" ]];
+  DEFAULT_NAMESPACE=$1
+  if [[ ${words[(ie)"-n"]} -lt ${#words} || ${words[(ie)"--namespace"]} -lt ${#words} || ${words[(ie)"-A"]} -lt ${#words} || "$KCTL_USE_NAMESPACE" == "$DEFAULT_NAMESPACE" ]];
   then
   else
     echo "--namespace" "$KCTL_USE_NAMESPACE"
@@ -97,11 +85,11 @@ _k_with_namespace() {
 }
 
 k_with_context() {
-  if [[ "${@:2}" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
+  if [[ "${@:3}" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
   then
-    $1 ${@:2};
+    $1 $2 ${@:3};
   else
-    $1 --context $KCTL_USE_CONTEXT ${@:2};
+    $1 $2 --context $KCTL_USE_CONTEXT ${@:3};
   fi
 }
 
@@ -113,526 +101,12 @@ _k_with_context() {
   fi
 }
 
-k() {
-  k_with_namespace k_with_context kc $@
-}
-
-_k() {
-  params=("${(@)words[2,$#words]}")
-  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "${params[@]}")
-  CURRENT=$#words
-  _kubectl
-}
-
-compdef _k k
-
-
-f_with_namespace() {
-  if [[ "$@" =~ "^(.* )?-n( .*)?$" || "$@" =~ "^(.* )?--namespace( .*)?$" || "$@" =~ "^(.* )?-A( .*)?$" || "$KCTL_USE_NAMESPACE" == "flux-system" ]];
-  then
-    f_with_context $@;
-  else
-    f_with_context -n $KCTL_USE_NAMESPACE $@;
-  fi
-}
-
-_f_with_namespace() {
-  if [[ ${words[(ie)"-n"]} -lt ${#words} || ${words[(ie)"--namespace"]} -lt ${#words} || ${words[(ie)"-A"]} -lt ${#words} || "$KCTL_USE_NAMESPACE" == "flux-system" ]];
-  then
-  else
-    echo "--namespace" "$KCTL_USE_NAMESPACE"
-  fi
-}
-
-f_with_context() {
-  if [[ "$@" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
-  then
-    _flx $@;
-  else
-    _flx --context $KCTL_USE_CONTEXT $@;
-  fi
-}
-
-_f_with_context() {
-  if [[ ${words[(ie)"--context"]} -lt ${#words} || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
-  then
-  else
-    echo "--context" "$KCTL_USE_CONTEXT"
-  fi
-}
-
-fx() {
-  f_with_namespace $@
-}
-
-_fx() {
-  params=("${(@)words[2,$#words]}")
-  words=("flux" "${$(_f_with_context)[@]}" "${$(_f_with_namespace)[@]}" "${params[@]}")
-  CURRENT=$#words
-  _flux
-}
-
-compdef _fx fx
-
-# flux get
-alias fxg='fx get'
-alias fxgap='fxg alert-providers'
-alias fxga='fxg alerts'
-alias fxgall='fxg all'
-alias fxghr='fxg helmreleases'
-alias fxgim='fxg images'
-alias fxgkz='fxg kustomizations'
-alias fxgr='fxg receivers'
-
-alias fxgnok='fx get --status-selector ready=false'
-
-
-alias fxgsrc='fxg sources all'
-alias fxgchart='fxg sources chart'
-alias fxggit='fxg sources git'
-alias fxghrepo='fxg sources helm'
-alias fxgoci='fxg sources oci'
-
-# flux delete
-alias fxrm='fx delete'
-alias fxrmap='fxrm alert-provider'
-alias fxrma='fxrm alert'
-alias fxrmhr='fxrm helmrelease'
-alias fxrmim='fxrm image'
-alias fxrmkz='fxrm kustomization'
-alias fxrmr='fxrm receiver'
-
-# flux events
-alias fxe='fx events'
-
-# flux logs
-alias fxl='f_with_context logs'
-
-# flux reconcile
-alias fxrec='fx reconcile'
-alias fxrechr='fxrec helmrelease'
-alias fxrecim='fxrec image'
-alias fxreckz='fxrec kustomization'
-alias fxrecr='fxrec receiver'
-
-alias fxrecsrc='fxrec sources'
-alias fxrecchart='fxrecsrc chart'
-alias fxrecgit='fxrecsrc git'
-alias fxrechrepo='fxrecsrc helm'
-alias fxrecoci='fxrecsrc oci'
-
-# flux resume
-alias fxres='fx resume'
-alias fxresap='fxres alert-provider'
-alias fxresa='fxres alert'
-alias fxreshr='fxres helmrelease'
-alias fxresim='fxres image'
-alias fxreskz='fxres kustomization'
-alias fxresr='fxres receiver'
-
-alias fxressrc='fxres sources'
-alias fxreschart='fxres sources chart'
-alias fxresgit='fxres sources git'
-alias fxreshrepo='fxres sources helm'
-alias fxresoci='fxres sources oci'
-
-# flux suspend
-alias fxsus='fx suspend'
-alias fxsusap='fxsus alert-provider'
-alias fxsusa='fxsus alert'
-alias fxsushr='fxsus helmrelease'
-alias fxsusim='fxsus image'
-alias fxsuskz='fxsus kustomization'
-alias fxsusr='fxsus receiver'
-
-alias fxsussrc='fxsus sources'
-alias fxsuschart='fxsus sources chart'
-alias fxsusgit='fxsus sources git'
-alias fxsushrepo='fxsus sources helm'
-alias fxsusoci='fxsus sources oci'
-
-# flux stats
-alias fxst='fx stats'
-
-# flux trace
-alias fxtr='fx trace'
-
-# flux tree
-alias fxt='fx tree kustomization'
-
-
-# GET
-alias kg='k get'
-alias kgpo='kg pod'
-alias kgpow='kg pod -w'
-alias kgsvc='kg service'
-alias kgdep='kg deployment'
-alias kgrs='kg replicaset'
-alias kgds='kg daemonset'
-alias kgss='kg statefulset'
-alias kging='kg ingress'
-alias kgcm='kg configmap'
-alias kgsec='kg secret'
-alias kgns='kg namespace'
-alias kgno='kg node -o wide'
-alias kgr='kg role'
-alias kgrb='kg rolebinding'
-alias kgcr='kg clusterrole'
-alias kgcrb='kg clusterrolebinding'
-alias kgpv='kg pv'
-alias kgpvc='kg pvc'
-alias kgall='kg all'
-alias kgj='kg job'
-alias kgcj='kg cronjob'
-
-function kglpo() {
-  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kgpo $POD $@
-}
-
-function kglpow() {
-  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kgpow $POD $@
-}
-
-function kglrs() {
-  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kgrs $RS $@
-}
-
-function kgl() {
-  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kg $1 $LAST ${@:2}
-}
-
-_kgl() {
-  params=("${(@)words[2,$#words]}")
-  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "${params[@]}")
-  CURRENT=$#words
-  _kubectl
-}
-
-compdef _kgl kgl
-
-# GET YAML
-_kcy() {
-  echo "\033[0;33m>\033[0m \033[1;30m${KCTL_BINARY} $@ | yh\033[0m">&2;
-  command ${KCTL_BINARY} $@ | yh;
-  echo "\033[0;33m<\033[0m \033[1;30m${KCTL_BINARY} $@ | yh\033[0m">&2;
-}
-function ky() {
-  if ! _kctl_binary_check "yh"; then
-    echo "You must install yh to enable yaml highlightening : https://github.com/andreazorzetto/yh" >&2
-    k_with_namespace k_with_context kc get "$@" -o yaml
-  else
-    k_with_namespace k_with_context _kcy get "$@" -o yaml
-  fi
-}
-compdef _kgl ky
-
-alias kypo='ky pod'
-alias kysvc='ky service'
-alias kydep='ky deployment'
-alias kyrs='ky replicaset'
-alias kyds='ky daemonset'
-alias kyss='ky statefulset'
-alias kying='ky ingress'
-alias kycm='ky configmap'
-alias kysec='ky secret'
-alias kyns='ky namespace'
-alias kyno='ky node'
-alias kyr='ky role'
-alias kyrb='ky rolebinding'
-alias kycr='ky clusterrole'
-alias kycrb='ky clusterrolebinding'
-alias kypv='ky pv'
-alias kypvc='ky pvc'
-alias kyj='ky job'
-alias kycj='ky cronjob'
-
-function kylpo() {
-  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kypo $POD $@
-}
-
-function kylrs() {
-  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kyrs $RS $@
-}
-
-function kyl() {
-  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  ky $1 $LAST ${@:2}
-}
-
-_kyl() {
-  params=("${(@)words[2,$#words]}")
-  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "${params[@]}")
-  CURRENT=$#words
-  _kubectl
-}
-
-compdef _kyl kyl
-
-
-# DESCRIBE
-alias kd='k describe'
-alias kdpo='kd pod'
-alias kdsvc='kd service'
-alias kddep='kd deployment'
-alias kdrs='kd replicaset'
-alias kdds='kd daemonset'
-alias kdss='kd statefulset'
-alias kding='kd ingress'
-alias kdcm='kd configmap'
-alias kdsec='kd secret'
-alias kdns='kd namespace'
-alias kdno='kd node'
-alias kdr='kd role'
-alias kdrb='kd rolebinding'
-alias kdcr='kd clusterrole'
-alias kdcrb='kd clusterrolebinding'
-alias kdpvc='kd pvc'
-alias kdpv='kd pv'
-alias kdj='kd job'
-alias kdcj='kd cronjob'
-
-function kdlpo() {
-  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kdpo $POD $@
-}
-
-function kdlrs() {
-  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kdrs $RS $@
-}
-
-function kdl() {
-  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kd $1 $LAST ${@:2}
-}
-
-_kdl() {
-  params=("${(@)words[2,$#words]}")
-  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "describe" "${params[@]}")
-  CURRENT=$#words
-  _kubectl
-}
-
-compdef _kdl kdl
-
-# DELETE
-alias krm='k delete'
-alias krmf='krm -f'
-alias krmk='krm -k'
-alias krmpo='krm pod'
-alias krmsvc='krm service'
-alias krmdep='krm deployment'
-alias krmrs='krm replicaset'
-alias krmds='krm daemonset'
-alias krmss='krm statefulset'
-alias krming='krm ingress'
-alias krmcm='krm configmap'
-alias krmsec='krm secret'
-alias krmns='krm namespace'
-alias krmno='krm node'
-alias krmr='krm role'
-alias krmrb='krm rolebinding'
-alias krmcr='krm clusterrole'
-alias krmcrb='krm clusterrolebinding'
-alias krmpvc='krm pvc'
-alias krmpv='krm pv'
-alias krmj='krm job'
-alias krmcj='krm cronjob'
-
-function krmlpo() {
-  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  krmpo $POD $@
-}
-
-function krmlrs() {
-  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  krmrs $RS $@
-}
-
-function krml() {
-  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  krm $1 $LAST ${@:2}
-}
-
-_krml() {
-  params=("${(@)words[2,$#words]}")
-  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "delete" "${params[@]}")
-  CURRENT=$#words
-  _kubectl
-}
-
-compdef _krml krml
-
-# EDIT
-alias ke='k edit'
-alias kepo='ke pod'
-alias kesvc='ke service'
-alias kedep='ke deployment'
-alias kers='ke replicaset'
-alias kess='ke statefulset'
-alias keds='ke daemonset'
-alias keing='ke ingress'
-alias kecm='ke configmap'
-alias kesec='ke secret'
-alias kens='ke namespace'
-alias ker='ke role'
-alias kerb='ke rolebinding'
-alias kecr='ke clusterrole'
-alias kecrb='ke clusterrolebinding'
-alias kepvc='ke pvc'
-alias kepv='ke pv'
-alias kej='ke job'
-alias kecj='ke cronjob'
-
-function kelpo() {
-  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kepo $POD $@
-}
-
-function kelrs() {
-  RS=$(kgrs $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kers $RS $@
-}
-
-function kel() {
-  LAST=$(kg $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  ke $1 $LAST ${@:2}
-}
-
-_kel() {
-  params=("${(@)words[2,$#words]}")
-  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "edit" "${params[@]}")
-  CURRENT=$#words
-  _kubectl
-}
-
-compdef _kel kel
-
-# APPLY
-alias ka='k apply -f'
-alias kk='k apply -k'
-
-# LOG
-alias klo='k logs -f'
-
-function klol() {
-  POD=$(kgpo $@ --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  klo $POD $@
-}
-
-# EXEC
-alias kex='k exec -it'
-
-function kexl() {
-
-  NMSPC=$KCTL_USE_NAMESPACE
-  if [[ "$@" =~ "(^| )-n .*" ]];
-  then
-    NMSPC=`grep -o -e '-n [^ ]*[ $]' <<< $@ | cut -d" " -f2`
-  elif [[ "$@" =~ "(^| )--namespace .*" ]];
-  then
-    NMSPC=`grep -o -e '--namespace [^ ]*[ $]' <<< $@ | cut -d" " -f2`
-  fi
-
-  POD=$(kgpo -n $NMSPC --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kex $POD $@
-}
-
-
-# PORT FORWARD
-alias kpf='k port-forward'
-
-function kpfpo() {
-  kpf pod/$@
-}
-
-_kpfpo() {
-  if [[ $#words -lt 3 ]]
-  then
-    params=("${(@)words[2,$#words]}")
-    words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "pod" "${params[@]}")
-    CURRENT=$#words
-    _kubectl
-  fi
-}
-
-compdef _kpfpo kpfpo
-
-function kpfsvc() {
-  kpf service/$@
-}
-
-_kpfsvc() {
-  if [[ $#words -lt 3 ]]
-  then
-    params=("${(@)words[2,$#words]}")
-    words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "service" "${params[@]}")
-    CURRENT=$#words
-    _kubectl
-  fi
-}
-
-compdef _kpfsvc kpfsvc
-
-function kpfdep() {
-  kpf deployment/$@
-}
-
-_kpfdep() {
-  if [[ $#words -lt 3 ]]
-  then
-    params=("${(@)words[2,$#words]}")
-    words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "get" "deployment" "${params[@]}")
-    CURRENT=$#words
-    _kubectl
-  fi
-}
-
-compdef _kpfdep kpfdep
-
-function kpflpo() {
-
-  NMSPC=$KCTL_USE_NAMESPACE
-  if [[ "$@" =~ "(^| )-n .*" ]];
-  then
-    NMSPC=`grep -o -e '-n [^ ]*[ $]' <<< $@ | cut -d" " -f2`
-  elif [[ "$@" =~ "(^| )--namespace .*" ]];
-  then
-    NMSPC=`grep -o -e '--namespace [^ ]*[ $]' <<< $@ | cut -d" " -f2`
-  fi
-
-  POD=$(kgpo -n $NMSPC --sort-by={.metadata.creationTimestamp} -o=go-template --template='{{range .items}}{{(printf "%s\n" .metadata.name)}}{{end}}' 2>/dev/null | tail -1)
-  kpfpo $POD $@
-}
-
-
-# DRAIN
-function kdrain() {
-  kc drain $1 --timeout=300s --ignore-daemonsets --force --delete-emptydir-data || kc drain $1 --timeout=60s --disable-eviction --ignore-daemonsets --force --delete-emptydir-data
-}
-
-_kdrain() {
-  params=("${(@)words[2,$#words]}")
-  words=("kubectl" "${$(_k_with_context)[@]}" "${$(_k_with_namespace)[@]}" "drain" "${params[@]}")
-  CURRENT=$#words
-  _kubectl
-}
-
-compdef _kdrain kdrain
-
 
 # Debug
 [[ -n $DEBUG ]] && set -x
 
 # Default values for the prompt
 # Override these values in ~/.zshrc or ~/.bashrc
-KCTL_BINARY="${KCTL_BINARY:-kubectl}"
 KCTL_SYMBOL_ENABLE="${KCTL_SYMBOL_ENABLE:-true}"
 KCTL_SYMBOL_DEFAULT=${KCTL_SYMBOL_DEFAULT:-$'\u2388 '}
 KCTL_SYMBOL_USE_IMG="${KCTL_SYMBOL_USE_IMG:-false}"
@@ -874,7 +348,7 @@ _kctl_use_context() {
 
 _kctl_get_ns() {
   if [[ "${KCTL_NS_ENABLE}" == true ]]; then
-    KCTL_NAMESPACE="$(k_with_context kc config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
+    KCTL_NAMESPACE="$(k_with_context _kctl_trace ${KCTL_BINARY} config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
     # Set namespace to 'default' if it is not defined
     KCTL_NAMESPACE="${KCTL_NAMESPACE:-default}"
   fi
@@ -908,6 +382,13 @@ _kctl_get_context_ns() {
 
 # Set kctl shell defaults
 _kctl_init
+
+0="${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}"
+0="${${(M)0:#/*}:-$PWD/$0}"
+
+source "${0:A:h}/flux.zsh"
+source "${0:A:h}/kubectl.zsh"
+source "${0:A:h}/sylvactl.zsh"
 
 _kctlon_usage() {
   cat <<"EOF"
@@ -1000,129 +481,3 @@ kctl() {
 
   echo "${KCTL}"
 }
-
-#
-# Oh-My-Zsh Compatibility
-#
-
-# Apply a YML file
-alias kaf='ka'
-
-# Drop into an interactive terminal on a container
-alias keti='kex'
-
-# General aliases
-alias kdel='krm'
-alias kdelf='krm -f'
-
-# Pod management.
-alias kgp='kgpo'
-alias kgpa='kgpo -A'
-alias kgpw='kgpow'
-alias kgpwide='kgpo -o wide'
-alias kep='kepo'
-alias kdp='kdpo'
-alias kdelp='krmpo'
-alias kgpall='kgpo -A -o wide'
-
-# get pod by label: kgpl "app=myapp" -n myns
-alias kgpl='kgpo -l'
-
-# get pod by namespace: kgpn kube-system"
-alias kgpn='kgpo -n'
-
-# Service management.
-alias kgs='kgsvc'
-alias kgsa='kgsvc --all-namespaces'
-alias kgsw='kgsvc --watch'
-alias kgswide='kgsvc -o wide'
-alias kes='kesvc'
-alias kds='kdsvc'
-alias kdels='krmsvc'
-
-# Ingress management
-alias kgi='kging'
-alias kgia='kging --all-namespaces'
-alias kei='keing'
-alias kdi='kding'
-alias kdeli='krming'
-
-# Namespace management
-alias kdelns='krmns'
-alias kcn='ksetns'
-
-# ConfigMap management
-alias kgcma='kgcm --all-namespaces'
-alias kdelcm='krmcm'
-
-# Secret management
-alias kgseca='kgsec --all-namespaces'
-alias kdelsec='krmsec'
-
-# Deployment management.
-alias kgd='kgdep'
-alias kgda='kgdep --all-namespaces'
-alias kgdw='kgdep --watch'
-alias kgdwide='kgdep -o wide'
-alias ked='kedep'
-alias kdd='kddep'
-alias kdeld='krmdep'
-alias ksd='k scale deployment'
-alias krsd='k rollout status deployment'
-
-function kres(){
-  k set env $@ REFRESHED_AT=$(date +%Y%m%d%H%M%S)
-}
-
-# Rollout management.
-alias krh='k rollout history'
-alias kru='k rollout undo'
-
-# Statefulset management.
-alias kgssa='kgss --all-namespaces'
-alias kgssw='kgss --watch'
-alias kgsswide='kgss -o wide'
-alias kdelss='krmss'
-alias ksss='k scale statefulset'
-alias krsss='k rollout status statefulset'
-
-# Tools for accessing all information
-alias kga='k get all'
-alias kgaa='k get all --all-namespaces'
-
-# Logs
-alias kl='klo'
-alias kl1h='klo --since 1h'
-alias kl1m='klo --since 1m'
-alias kl1s='klo --since 1s'
-alias klf='klo -f'
-alias klf1h='klo --since 1h -f'
-alias klf1m='klo --since 1m -f'
-alias klf1s='klo --since 1s -f'
-
-# File copy
-alias kcp='k cp'
-
-# Node Management
-alias keno='k edit node'
-alias kdelno='krmno'
-
-# PVC management.
-alias kgpvca='kgpvc --all-namespaces'
-alias kgpvcw='kgpvc --watch'
-alias kdelpvc='krmpvc'
-
-# Service account management.
-alias kdsa="k describe sa"
-alias kdelsa="k delete sa"
-
-# DaemonSet management.
-alias kgdsa='kgds --all-namespaces'
-alias kgdsw='kgds --watch'
-alias kdelds='krmds'
-
-# CronJob management.
-alias kdelcj='krmcj'
-
-# Job management.
-alias kdelj='krmj'
