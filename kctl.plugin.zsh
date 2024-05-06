@@ -60,9 +60,11 @@ compdef _kctx kctx
 compdef _kctx ksetctx
 
 _kctl_trace() {
-  echo "\033[0;33m>\033[0m \033[1;30m$@\033[0m">&2;
-  command $@;
-  echo "\033[0;33m<\033[0m \033[1;30m$@\033[0m">&2;
+  echo "\033[0;33m>\033[0m \033[1;30m$@\033[0m">&2
+  command $@
+  result=$?
+  echo "\033[0;33m<\033[0m \033[1;30m$@\033[0m">&2
+  return result
 }
 
 k_with_namespace() {

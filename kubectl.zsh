@@ -386,7 +386,7 @@ function kpflpo() {
 
 # DRAIN
 function kdrain() {
-  kc drain $1 --timeout=300s --ignore-daemonsets --force --delete-emptydir-data || kc drain $1 --timeout=60s --disable-eviction --ignore-daemonsets --force --delete-emptydir-data
+  _kctl_trace ${KCTL_BINARY} drain $1 --timeout=300s --ignore-daemonsets --force --delete-emptydir-data || _kctl_trace ${KCTL_BINARY} drain $1 --timeout=60s --disable-eviction --ignore-daemonsets --force --delete-emptydir-data
 }
 
 _kdrain() {
