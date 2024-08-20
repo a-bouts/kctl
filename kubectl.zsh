@@ -3,9 +3,10 @@
 #
 #
 
-KCTL_BINARY="${KCTL_BINARY:-kubectl}"
+KCTL_ALIAS="${KCTL_BINARY:-kubectl}"
+KCTL_BINARY=$(which ${KCTL_ALIAS})
 
-if (( ! $+commands[${KCTL_BINARY}] )); then
+if [ $? -ne 0 ]; then
   return
 fi
 
@@ -17,10 +18,10 @@ if [[ ! -f "$ZSH_CACHE_DIR/completions/_kubectl" ]]; then
   _comps[kubectl]=_kubectl
 fi
 
-kubectl completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
+${KCTL_BINARY} completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
 
 k() {
-  k_with_namespace $KCTL_NAMESPACE k_with_context _kctl_trace ${KCTL_BINARY} $@
+  k_with_namespace $KCTL_NAMESPACE k_with_context _kctl_trace ${KCTL_ALIAS} ${KCTL_BINARY} $@
 }
 
 _k() {
@@ -32,6 +33,7 @@ _k() {
 
 compdef _k k
 
+alias kubectl='k'
 
 # GET
 alias kg='k get'
@@ -95,7 +97,7 @@ _kcy() {
 function ky() {
   if ! _kctl_binary_check "yh"; then
     echo "You must install yh to enable yaml highlightening : https://github.com/andreazorzetto/yh" >&2
-    k_with_namespace $KCTL_NAMESPACE k_with_context _kctl_trace ${KCTL_BINARY} get "$@" -o yaml
+    k_with_namespace $KCTL_NAMESPACE k_with_context _kctl_trace ${KCTL_ALIAS} ${KCTL_BINARY} get "$@" -o yaml
   else
     k_with_namespace $KCTL_NAMESPACE k_with_context _kcy get "$@" -o yaml
   fi
@@ -386,7 +388,7 @@ function kpflpo() {
 
 # DRAIN
 function kdrain() {
-  _kctl_trace ${KCTL_BINARY} drain $1 --timeout=300s --ignore-daemonsets --force --delete-emptydir-data || _kctl_trace ${KCTL_BINARY} drain $1 --timeout=60s --disable-eviction --ignore-daemonsets --force --delete-emptydir-data
+  _kctl_trace ${KCTL_ALIAS} ${KCTL_BINARY} drain $1 --timeout=300s --ignore-daemonsets --force --delete-emptydir-data || _kctl_trace ${KCTL_ALIAS} ${KCTL_BINARY} drain $1 --timeout=60s --disable-eviction --ignore-daemonsets --force --delete-emptydir-data
 }
 
 _kdrain() {

@@ -3,9 +3,10 @@
 #
 #
 
-KCTL_BINARY="${KCTL_BINARY:-kubectl}"
+KCTL_ALIAS="${KCTL_BINARY:-kubectl}"
+KCTL_BINARY=$(which ${KCTL_ALIAS})
 
-if (( ! $+commands[${KCTL_BINARY}] )); then
+if [ $? -ne 0 ]; then
   return
 fi
 
@@ -17,7 +18,7 @@ if [[ ! -f "$ZSH_CACHE_DIR/completions/_kubectl" ]]; then
   _comps[kubectl]=_kubectl
 fi
 
-kubectl completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
+${KCTL_BINARY} completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
 
 function ksetns() {
   ${KCTL_BINARY} config set-context --current --namespace=$1
@@ -60,20 +61,24 @@ compdef _kctx kctx
 compdef _kctx ksetctx
 
 _kctl_trace() {
-  echo "\033[0;33m>\033[0m \033[1;30m$@\033[0m">&2
-  command $@
+  alias=$1
+  command=$2
+  attrs=${@:3}
+
+  echo "\033[0;33m>\033[0m \033[1;30m$alias $attrs\033[0m">&2
+  command ${@:2}
   result=$?
-  echo "\033[0;33m<\033[0m \033[1;30m$@\033[0m">&2
+  echo "\033[0;33m<\033[0m \033[1;30m$alias $attrs\033[0m">&2
   return result
 }
 
 k_with_namespace() {
   DEFAULT_NAMESPACE=$1
-  if [[ "${@:5}" =~ "^(.* )?-n( .*)?$" || "${@:5}" =~ "^(.* )?--namespace( .*)?$" || "${@:5}" =~ "^(.* )?-A( .*)?$" || "$KCTL_USE_NAMESPACE" == "$DEFAULT_NAMESPACE" ]];
+  if [[ "${@:6}" =~ "^(.* )?-n( .*)?$" || "${@:6}" =~ "^(.* )?--namespace( .*)?$" || "${@:6}" =~ "^(.* )?-A( .*)?$" || "$KCTL_USE_NAMESPACE" == "$DEFAULT_NAMESPACE" ]];
   then
-    $2 $3 $4 ${@:5};
+    $2 $3 $4 $5 ${@:6};
   else
-    $2 $3 $4 -n $KCTL_USE_NAMESPACE ${@:5};
+    $2 $3 $4 $5 -n $KCTL_USE_NAMESPACE ${@:6};
   fi
 }
 
@@ -87,11 +92,11 @@ _k_with_namespace() {
 }
 
 k_with_context() {
-  if [[ "${@:3}" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
+  if [[ "${@:4}" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
   then
-    $1 $2 ${@:3};
+    $1 $2 $3 ${@:4};
   else
-    $1 $2 --context $KCTL_USE_CONTEXT ${@:3};
+    $1 $2 $3 --context $KCTL_USE_CONTEXT ${@:4};
   fi
 }
 
@@ -350,7 +355,7 @@ _kctl_use_context() {
 
 _kctl_get_ns() {
   if [[ "${KCTL_NS_ENABLE}" == true ]]; then
-    KCTL_NAMESPACE="$(k_with_context _kctl_trace ${KCTL_BINARY} config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
+    KCTL_NAMESPACE="$(k_with_context _kctl_trace ${KCTL_ALIAS} ${KCTL_BINARY} config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
     # Set namespace to 'default' if it is not defined
     KCTL_NAMESPACE="${KCTL_NAMESPACE:-default}"
   fi

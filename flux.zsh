@@ -5,9 +5,10 @@
 
 # Default values for the prompt
 # Override these values in ~/.zshrc or ~/.bashrc
-FLUX_BINARY="${FLUX_BINARY:-flux}"
+FLUX_ALIAS="${FLUX_BINARY:-flux}"
+FLUX_BINARY=$(which ${FLUX_ALIAS})
 
-if (( ! $+commands[${FLUX_BINARY}] )); then
+if [ $? -ne 0 ]; then
   return
 fi
 
@@ -19,10 +20,10 @@ if [[ ! -f "$ZSH_CACHE_DIR/completions/_flux" ]]; then
   _comps[flux]=_flux
 fi
 
-flux completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_flux" &|
+${FLUX_BINARY} completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_flux" &|
 
 fx() {
-  k_with_namespace "flux-system" k_with_context _kctl_trace ${FLUX_BINARY} $@
+  k_with_namespace "flux-system" k_with_context _kctl_trace ${FLUX_ALIAS} ${FLUX_BINARY} $@
 }
 
 _fx() {
@@ -33,6 +34,8 @@ _fx() {
 }
 
 compdef _fx fx
+
+alias flux='fx'
 
 # flux get
 alias fxg='fx get'
@@ -66,7 +69,7 @@ alias fxrmr='fxrm receiver'
 alias fxe='fx events'
 
 # flux logs
-alias fxl='k_with_context _kctl_trace ${FLUX_BINARY} logs'
+alias fxl='k_with_context _kctl_trace ${FLUX_ALIAS} ${FLUX_BINARY} logs'
 
 # flux reconcile
 alias fxrec='fx reconcile'
