@@ -3,13 +3,6 @@
 #
 #
 
-KCTL_ALIAS="${KCTL_BINARY:-kubectl}"
-KCTL_BINARY=$(which ${KCTL_ALIAS})
-
-if [ $? -ne 0 ]; then
-  return
-fi
-
 # If the completion file doesn't exist yet, we need to autoload it and
 # bind it to `kubectl`. Otherwise, compinit will have already done that.
 if [[ ! -f "$ZSH_CACHE_DIR/completions/_kubectl" ]]; then
@@ -88,15 +81,19 @@ _kgl() {
 
 compdef _kgl kgl
 
+_kctl_binary_check "yq" && YAML_PROCESSOR=yq
+_kctl_binary_check "yh" && YAML_PROCESSOR=yh
+YAML_PROCESSOR=${YAML_PROCESSOR_BINARY:-"${YAML_PROCESSOR}"}
+
 # GET YAML
 _kcy() {
-  echo "\033[0;33m>\033[0m \033[1;30m${KCTL_BINARY} $@ | yh\033[0m">&2;
-  command ${KCTL_BINARY} $@ | yh;
-  echo "\033[0;33m<\033[0m \033[1;30m${KCTL_BINARY} $@ | yh\033[0m">&2;
+  echo "\033[0;33m>\033[0m \033[1;30m${KCTL_ALIAS} $@ | $YAML_PROCESSOR\033[0m">&2;
+  command ${KCTL_BINARY} $@ | $YAML_PROCESSOR;
+  echo "\033[0;33m<\033[0m \033[1;30m${KCTL_ALIAS} $@ | $YAML_PROCESSOR\033[0m">&2;
 }
 function ky() {
-  if ! _kctl_binary_check "yh"; then
-    echo "You must install yh to enable yaml highlightening : https://github.com/andreazorzetto/yh" >&2
+  if [[ -z $YAML_PROCESSOR ]]; then
+    echo "You must install yh or yq to enable yaml highlightening : https://github.com/andreazorzetto/yh or https://github.com/mikefarah/yq" >&2
     k_with_namespace $KCTL_NAMESPACE k_with_context _kctl_trace ${KCTL_ALIAS} ${KCTL_BINARY} get "$@" -o yaml
   else
     k_with_namespace $KCTL_NAMESPACE k_with_context _kcy get "$@" -o yaml

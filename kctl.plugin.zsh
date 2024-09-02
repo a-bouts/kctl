@@ -21,7 +21,7 @@ fi
 ${KCTL_BINARY} completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
 
 function ksetns() {
-  ${KCTL_BINARY} config set-context --current --namespace=$1
+  ${KCTL_BINARY} config set-context ${KCTL_USE_CONTEXT} --namespace=$1
   _kctl_get_ns
   _kctl_use_ns $1
 }
@@ -80,6 +80,8 @@ k_with_namespace() {
   else
     $2 $3 $4 $5 -n $KCTL_USE_NAMESPACE ${@:6};
   fi
+  KCTL_STATE=$?
+  return $KCTL_STATE
 }
 
 _k_with_namespace() {
@@ -92,7 +94,7 @@ _k_with_namespace() {
 }
 
 k_with_context() {
-  if [[ "${@:4}" =~ "^(.* )?--context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
+  if [[ "${@:4}" =~ "^(.* )?--context( .*)?$" || "${@:4}" =~ "^(.* )?(set|use)-context( .*)?$" || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
   then
     $1 $2 $3 ${@:4};
   else
@@ -101,7 +103,7 @@ k_with_context() {
 }
 
 _k_with_context() {
-  if [[ ${words[(ie)"--context"]} -lt ${#words} || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
+  if [[ ${words[(ie)"--context"]} -lt ${#words} || ${words[(ie)"(set|use)-context"]} -lt ${#words} || "$KCTL_USE_CONTEXT" == "$KCTL_CONTEXT" || -z "$KCTL_USE_CONTEXT" ]];
   then
   else
     echo "--context" "$KCTL_USE_CONTEXT"
@@ -119,13 +121,15 @@ KCTL_SYMBOL_DEFAULT=${KCTL_SYMBOL_DEFAULT:-$'\u2388 '}
 KCTL_SYMBOL_USE_IMG="${KCTL_SYMBOL_USE_IMG:-false}"
 KCTL_NS_ENABLE="${KCTL_NS_ENABLE:-true}"
 KCTL_CONTEXT_ENABLE="${KCTL_CONTEXT_ENABLE:-true}"
-KCTL_PREFIX="${KCTL_PREFIX-(}"
+KCTL_PREFIX="${KCTL_PREFIX-[}"
 KCTL_SEPARATOR="${KCTL_SEPARATOR-}"
 KCTL_DIVIDER="${KCTL_DIVIDER-:}"
-KCTL_SUFFIX="${KCTL_SUFFIX-) }"
+KCTL_SUFFIX="${KCTL_SUFFIX-] }"
+KCTL_PREFIX_COLOR="${KCTL_PREFIX_COLOR-12}"
 KCTL_SYMBOL_COLOR="${KCTL_SYMBOL_COLOR-12}"
-KCTL_CTX_COLOR="${KCTL_CTX_COLOR-red}"
-KCTL_NS_COLOR="${KCTL_NS_COLOR-cyan}"
+KCTL_CTX_COLOR="${KCTL_CTX_COLOR-69}"
+KCTL_NS_COLOR="${KCTL_NS_COLOR-12}"
+KCTL_SUFFIX_COLOR="${KCTL_SUFFIX_COLOR-12}"
 KCTL_TIP_COLOR="${KCTL_TIP_COLOR-yellow}"
 KCTL_BG_COLOR="${KCTL_BG_COLOR}"
 KCTL_KUBECONFIG_CACHE="${KUBECONFIG}"
@@ -133,8 +137,6 @@ KCTL_DISABLE_PATH="${HOME}/.kube/kctl/disabled"
 KCTL_LAST_TIME=0
 KCTL_CLUSTER_FUNCTION="${KCTL_CLUSTER_FUNCTION}"
 KCTL_NAMESPACE_FUNCTION="${KCTL_NAMESPACE_FUNCTION}"
-
-FLUX_BINARY="${FLUX_BINARY:-flux}"
 
 # Determine our shell
 if [ "${ZSH_VERSION-}" ]; then
@@ -168,8 +170,8 @@ _kctl_init() {
       ;;
   esac
   _kctl_update_cache
-  _kctl_use_context "${KCTL_CONTEXT}"
-  _kctl_use_ns "${KCTL_NAMESPACE}"
+  _kctl_use_context ${KCTL_USE_CONTEXT:-"${KCTL_CONTEXT}"}
+  _kctl_use_ns ${KCTL_USE_NAMESPACE:-"${KCTL_NAMESPACE}"}
 }
 
 _kctl_color_fg() {
@@ -338,9 +340,12 @@ _kctl_get_context() {
 _kctl_use_context() {
   if [[ "${KCTL_CONTEXT_ENABLE}" == true ]]
   then
-    kubectl version --context "$1" 1>/dev/null
+    ${KCTL_BINARY} config get-contexts "$1" 1>/dev/null
     if [ $? -eq 0 ]
     then
+      ${KCTL_BINARY} version --context "$1" 1>/dev/null
+      KCTL_STATE=$?
+
       KCTL_USE_CONTEXT="$1"
       if [[ ! -z "${KCTL_CLUSTER_FUNCTION}" ]]; then
         $KCTL_CLUSTER_FUNCTION $KCTL_USE_CONTEXT
@@ -454,10 +459,30 @@ kctl() {
   local KCTL
   local KCTL_RESET_COLOR="${_KCTL_OPEN_ESC}${_KCTL_DEFAULT_FG}${_KCTL_CLOSE_ESC}"
 
+  local CTX=$(echo ${KCTL_USE_CONTEXT} | sed 's/[^a-zA-Z0-9]/_/g')
+  local CTX_BG_COLOR=$(eval 'echo $'"KCTL_${CTX}_BG_COLOR")
+  local KCTL_BG_COLOR=${CTX_BG_COLOR:-$KCTL_BG_COLOR}
+
+  local CTX_PREFIX_COLOR=$(eval 'echo $'"KCTL_${CTX}_PREFIX_COLOR")
+  local KCTL_PREFIX_COLOR=${CTX_PREFIX_COLOR:-$KCTL_PREFIX_COLOR}
+
+  local CTX_SYMBOL_COLOR=$(eval 'echo $'"KCTL_${CTX}_SYMBOL_COLOR")
+  local KCTL_SYMBOL_COLOR=${CTX_SYMBOL_COLOR:-$KCTL_SYMBOL_COLOR}
+
+  local CTX_CTX_COLOR=$(eval 'echo $'"KCTL_${CTX}_CTX_COLOR")
+  local KCTL_CTX_COLOR=${CTX_CTX_COLOR:-$KCTL_CTX_COLOR}
+
+  local CTX_NS_COLOR=$(eval 'echo $'"KCTL_${CTX}_NS_COLOR")
+  local KCTL_NS_COLOR=${CTX_NS_COLOR:-$KCTL_NS_COLOR}
+
+  local CTX_SUFFIX_COLOR=$(eval 'echo $'"KCTL_${CTX}_SUFFIX_COLOR")
+  local KCTL_SUFFIX_COLOR=${CTX_SUFFIX_COLOR:-$KCTL_SUFFIX_COLOR}
+
   # Background Color
   [[ -n "${KCTL_BG_COLOR}" ]] && KCTL+="$(_kctl_color_bg ${KCTL_BG_COLOR})"
 
   # Prefix
+  [[ -n "${KCTL_PREFIX_COLOR}" ]] && KCTL+="$(_kctl_color_fg ${KCTL_PREFIX_COLOR})"
   [[ -n "${KCTL_PREFIX}" ]] && KCTL+="${KCTL_PREFIX}"
 
   # Symbol
@@ -480,8 +505,12 @@ kctl() {
     KCTL+="$(_kctl_color_fg ${KCTL_NS_COLOR})${KCTL_USE_NAMESPACE}${KCTL_RESET_COLOR}"
   fi
 
+  # State
+  [[ "${KCTL_STATE}" == "0" ]] || KCTL+=" %{$fg[yellow]%}%1{✗%}"
+
   # Suffix
-  [[ -n "${KCTL_SUFFIX}" ]] && KCTL+="${KCTL_SUFFIX}"
+  [[ -n "${KCTL_SUFFIX_COLOR}" ]] && KCTL+="$(_kctl_color_fg ${KCTL_SUFFIX_COLOR})"
+  [[ -n "${KCTL_SUFFIX}" ]] && KCTL+="${KCTL_SUFFIX}${KCTL_RESET_COLOR}"
 
   # Close Background color if defined
   [[ -n "${KCTL_BG_COLOR}" ]] && KCTL+="${_KCTL_OPEN_ESC}${_KCTL_DEFAULT_BG}${_KCTL_CLOSE_ESC}"
