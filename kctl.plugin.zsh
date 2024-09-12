@@ -4,7 +4,7 @@
 #
 
 KCTL_ALIAS="${KCTL_BINARY:-kubectl}"
-KCTL_BINARY=$(which ${KCTL_ALIAS})
+KCTL_USE_BINARY=$(which ${KCTL_ALIAS})
 
 if [ $? -ne 0 ]; then
   return
@@ -18,10 +18,10 @@ if [[ ! -f "$ZSH_CACHE_DIR/completions/_kubectl" ]]; then
   _comps[kubectl]=_kubectl
 fi
 
-${KCTL_BINARY} completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
+${KCTL_USE_BINARY} completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
 
 function ksetns() {
-  ${KCTL_BINARY} config set-context ${KCTL_USE_CONTEXT} --namespace=$1
+  ${KCTL_USE_BINARY} config set-context ${KCTL_USE_CONTEXT} --namespace=$1
   _kctl_get_ns
   _kctl_use_ns $1
 }
@@ -40,7 +40,7 @@ compdef _kns kns
 compdef _kns ksetns
 
 function ksetctx() {
-  ${KCTL_BINARY} config use-context $1
+  ${KCTL_USE_BINARY} config use-context $1
   if [ $? -eq 0 ]
   then
     _kctl_use_context $1
@@ -240,7 +240,7 @@ _kctl_color_bg() {
   echo ${OPEN_ESC}${KCTL_BG_CODE}${CLOSE_ESC}
 }
 
-_kctl_binary_check() {
+_KCTL_USE_BINARY_check() {
   command -v $1 >/dev/null
 }
 
@@ -301,7 +301,7 @@ _kctl_update_cache() {
 
   [[ "${KCTL_ENABLED}" == "off" ]] && return $return_code
 
-  if ! _kctl_binary_check "${KCTL_BINARY}"; then
+  if ! _KCTL_USE_BINARY_check "${KCTL_USE_BINARY}"; then
     # No ability to fetch context/namespace; display N/A.
     KCTL_CONTEXT="BINARY-N/A"
     KCTL_NAMESPACE="N/A"
@@ -331,7 +331,7 @@ _kctl_update_cache() {
 
 _kctl_get_context() {
   if [[ "${KCTL_CONTEXT_ENABLE}" == true ]]; then
-    KCTL_CONTEXT="$(${KCTL_BINARY} config current-context 2>/dev/null)"
+    KCTL_CONTEXT="$(${KCTL_USE_BINARY} config current-context 2>/dev/null)"
     # Set namespace to 'N/A' if it is not defined
     KCTL_CONTEXT="${KCTL_CONTEXT:-N/A}"
   fi
@@ -340,10 +340,10 @@ _kctl_get_context() {
 _kctl_use_context() {
   if [[ "${KCTL_CONTEXT_ENABLE}" == true ]]
   then
-    ${KCTL_BINARY} config get-contexts "$1" 1>/dev/null
+    ${KCTL_USE_BINARY} config get-contexts "$1" 1>/dev/null
     if [ $? -eq 0 ]
     then
-      ${KCTL_BINARY} version --context "$1" 1>/dev/null
+      ${KCTL_USE_BINARY} version --context "$1" 1>/dev/null
       KCTL_STATE=$?
 
       KCTL_USE_CONTEXT="$1"
@@ -360,7 +360,7 @@ _kctl_use_context() {
 
 _kctl_get_ns() {
   if [[ "${KCTL_NS_ENABLE}" == true ]]; then
-    KCTL_NAMESPACE="$(k_with_context _kctl_trace ${KCTL_ALIAS} ${KCTL_BINARY} config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
+    KCTL_NAMESPACE="$(k_with_context _kctl_trace ${KCTL_ALIAS} ${KCTL_USE_BINARY} config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
     # Set namespace to 'default' if it is not defined
     KCTL_NAMESPACE="${KCTL_NAMESPACE:-default}"
   fi
