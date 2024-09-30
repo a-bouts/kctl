@@ -343,7 +343,7 @@ _kctl_use_context() {
     ${KCTL_USE_BINARY} config get-contexts "$1" 1>/dev/null
     if [ $? -eq 0 ]
     then
-      ${KCTL_USE_BINARY} version --context "$1" 1>/dev/null
+      ${KCTL_USE_BINARY} --request-timeout 2s version --context "$1" 1>/dev/null
       KCTL_STATE=$?
 
       KCTL_USE_CONTEXT="$1"
