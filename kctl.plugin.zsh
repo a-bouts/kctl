@@ -156,7 +156,7 @@ _kctl_init() {
       _KCTL_DEFAULT_FG="%f"
       setopt PROMPT_SUBST
       autoload -U add-zsh-hook
-      #add-zsh-hook precmd _kctl_update_cache
+      add-zsh-hook precmd _kctl_update_cache
       add-zsh-hook preexec _kctl_update_cache
       zmodload -F zsh/stat b:zstat
       zmodload zsh/datetime
@@ -312,6 +312,8 @@ _kctl_update_cache() {
     # User changed KUBECONFIG; unconditionally refetch.
     KCTL_KUBECONFIG_CACHE=${KUBECONFIG}
     _kctl_get_context_ns
+    _kctl_use_context ${KCTL_CONTEXT}
+    _kctl_use_ns ${KCTL_NAMESPACE}
     return
   fi
 
@@ -322,6 +324,8 @@ _kctl_update_cache() {
     [[ -r "${conf}" ]] || continue
     if _kctl_file_newer_than "${conf}" "${KCTL_LAST_TIME}"; then
       _kctl_get_context_ns
+      _kctl_use_context ${KCTL_CONTEXT}
+      _kctl_use_ns ${KCTL_NAMESPACE}
       return
     fi
   done
