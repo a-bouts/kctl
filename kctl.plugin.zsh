@@ -343,7 +343,7 @@ _kctl_get_context() {
 }
 
 _kctl_use_context() {
-  if [[ "${KCTL_CONTEXT_ENABLE}" == true ]]
+  if [[ "${KCTL_CONTEXT_ENABLE}" == true ]] && [[ "$1" != "N/A" ]]
   then
     ${KCTL_USE_BINARY} config get-contexts "$1" 1>/dev/null
     if [ $? -eq 0 ]
