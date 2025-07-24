@@ -65,10 +65,10 @@ _kctl_trace() {
   command=$2
   attrs=${@:3}
 
-  echo "\033[0;33m>\033[0m \033[1;30m$alias $attrs\033[0m">&2
+  echo "\033[0;33m>\033[0m \033[2;33m$alias $attrs\033[0m">&2
   command ${@:2}
   result=$?
-  echo "\033[0;33m<\033[0m \033[1;30m$alias $attrs\033[0m">&2
+  echo "\033[0;33m<\033[0m \033[2;33m$alias $attrs\033[0m">&2
   return result
 }
 
@@ -127,6 +127,7 @@ KCTL_DIVIDER="${KCTL_DIVIDER-:}"
 KCTL_SUFFIX="${KCTL_SUFFIX-] }"
 KCTL_PREFIX_COLOR="${KCTL_PREFIX_COLOR-12}"
 KCTL_SYMBOL_COLOR="${KCTL_SYMBOL_COLOR-12}"
+SYLVA_SYMBOL_COLOR="${SYLVA_SYMBOL_COLOR-11}"
 KCTL_CTX_COLOR="${KCTL_CTX_COLOR-69}"
 KCTL_NS_COLOR="${KCTL_NS_COLOR-12}"
 KCTL_SUFFIX_COLOR="${KCTL_SUFFIX_COLOR-12}"
@@ -350,6 +351,9 @@ _kctl_use_context() {
       ${KCTL_USE_BINARY} --request-timeout 2s version --context "$1" 1>/dev/null
       KCTL_STATE=$?
 
+      KCTL_SYLVA_CLUSTER=""
+      ${KCTL_USE_BINARY} --request-timeout 2s get -n sylva-system kustomization management-flag &>/dev/null && KCTL_SYLVA_CLUSTER="management"
+
       KCTL_USE_CONTEXT="$1"
       if [[ ! -z "${KCTL_CLUSTER_FUNCTION}" ]]; then
         $KCTL_CLUSTER_FUNCTION $KCTL_USE_CONTEXT
@@ -490,7 +494,11 @@ kctl() {
   [[ -n "${KCTL_PREFIX}" ]] && KCTL+="${KCTL_PREFIX}"
 
   # Symbol
-  KCTL+="$(_kctl_color_fg $KCTL_SYMBOL_COLOR)$(_kctl_symbol)${KCTL_RESET_COLOR}"
+  if [[ "${KCTL_SYLVA_CLUSTER}" == "management" ]]; then
+    KCTL+="$(_kctl_color_fg $SYLVA_SYMBOL_COLOR)$(_kctl_symbol)${KCTL_RESET_COLOR}"
+  else
+    KCTL+="$(_kctl_color_fg $KCTL_SYMBOL_COLOR)$(_kctl_symbol)${KCTL_RESET_COLOR}"
+  fi
 
   if [[ -n "${KCTL_SEPARATOR}" ]] && [[ "${KCTL_SYMBOL_ENABLE}" == true ]]; then
     KCTL+="${KCTL_SEPARATOR}"
