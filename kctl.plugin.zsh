@@ -351,17 +351,20 @@ _kctl_use_context() {
       ${KCTL_USE_BINARY} --request-timeout 2s version --context "$1" 1>/dev/null
       KCTL_STATE=$?
 
-      KCTL_SYLVA_CLUSTER=""
-      ${KCTL_USE_BINARY} --request-timeout 2s get -n sylva-system kustomization management-flag &>/dev/null && KCTL_SYLVA_CLUSTER="management"
-
       KCTL_USE_CONTEXT="$1"
       if [[ ! -z "${KCTL_CLUSTER_FUNCTION}" ]]; then
         $KCTL_CLUSTER_FUNCTION $KCTL_USE_CONTEXT
       fi
-      # Reload namespace from context
-      _kctl_get_ns
-      # Use this namespace
-      _kctl_use_ns "$KCTL_NAMESPACE"
+
+      if [ $KCTL_STATE -eq 0 ]
+      then
+        KCTL_SYLVA_CLUSTER=""
+        ${KCTL_USE_BINARY} --request-timeout 2s get -n sylva-system kustomization management-flag &>/dev/null && KCTL_SYLVA_CLUSTER="management"
+        # Reload namespace from context
+        _kctl_get_ns
+        # Use this namespace
+        _kctl_use_ns "$KCTL_NAMESPACE"
+      fi
     fi
   fi
 }
