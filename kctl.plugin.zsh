@@ -10,14 +10,25 @@ if [ $? -ne 0 ]; then
   return
 fi
 
+# Ensure the completions directory is in fpath
+if [[ -d "$ZSH_CACHE_DIR/completions" ]]; then
+  fpath=("$ZSH_CACHE_DIR/completions" $fpath)
+fi
+
 # If the completion file doesn't exist yet, we need to autoload it and
 # bind it to `kubectl`. Otherwise, compinit will have already done that.
 if [[ ! -f "$ZSH_CACHE_DIR/completions/_kubectl" ]]; then
   typeset -g -A _comps
   autoload -Uz _kubectl
   _comps[kubectl]=_kubectl
+  # Generate completion synchronously first time
+  ${KCTL_USE_BINARY} completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl"
+else
+  # Completion file exists, just make sure it's autoloaded
+  autoload -Uz _kubectl
 fi
 
+# Update completion asynchronously for future use
 ${KCTL_USE_BINARY} completion zsh 2> /dev/null >| "$ZSH_CACHE_DIR/completions/_kubectl" &|
 
 function ksetns() {
