@@ -65,10 +65,10 @@ _kctl_trace() {
   command=$2
   attrs=${@:3}
 
-  echo "\033[0;33m>\033[0m \033[2;33m$alias $attrs\033[0m">&2
+  echo "\033[0;33m❯\033[0m \033[2;33m$alias $attrs\033[0m">&2
   command ${@:2}
   result=$?
-  echo "\033[0;33m<\033[0m \033[2;33m$alias $attrs\033[0m">&2
+  echo "\033[0;33m❮\033[0m \033[2;33m$alias $attrs\033[0m">&2
   return result
 }
 
@@ -352,13 +352,14 @@ _kctl_use_context() {
       KCTL_STATE=$?
 
       KCTL_USE_CONTEXT="$1"
+      export KCTL_USE_CONTEXT
       if [[ ! -z "${KCTL_CLUSTER_FUNCTION}" ]]; then
         $KCTL_CLUSTER_FUNCTION $KCTL_USE_CONTEXT
       fi
 
       if [ $KCTL_STATE -eq 0 ]
       then
-        KCTL_SYLVA_CLUSTER=""
+        export KCTL_SYLVA_CLUSTER=""
         ${KCTL_USE_BINARY} --request-timeout 2s get -n sylva-system kustomization management-flag &>/dev/null && KCTL_SYLVA_CLUSTER="management"
         # Reload namespace from context
         _kctl_get_ns
@@ -381,6 +382,7 @@ _kctl_use_ns() {
   if [[ "${KCTL_NS_ENABLE}" == true ]]
   then
     KCTL_USE_NAMESPACE="$1"
+    export KCTL_USE_NAMESPACE
     if [[ ! -z "${KCTL_NAMESPACE_FUNCTION}" ]]; then
         $KCTL_NAMESPACE_FUNCTION $KCTL_USE_NAMESPACE
     fi
